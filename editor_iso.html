@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>UNLaM · Editor Isométrico</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0e1a0e; --panel:#0a120a; --panel2:#0c160c;
+  --border:rgba(255,255,255,.07); --border2:rgba(255,255,255,.13);
+  --accent:#5b82b5; --accent-hi:#8fb3e8;
+  --green:#4fa830; --green-hi:#7ecc55; --green-glow:rgba(79,168,48,.15);
+  --red-hi:#e8704a;
+  --text:#c8d4e0; --text-dim:#4a6050; --text-mid:#8a9aac;
+  --topbar:46px; --left:188px;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:system-ui,sans-serif;color:var(--text);}
+
+/* ── TOPBAR ── */
+#topbar{
+  position:fixed;top:0;left:0;right:0;height:var(--topbar);
+  background:var(--panel);border-bottom:1px solid var(--border2);
+  display:flex;align-items:center;gap:8px;padding:0 12px;z-index:500;
+  user-select:none;
+}
+.logo{width:26px;height:26px;border-radius:7px;flex-shrink:0;background:linear-gradient(135deg,#2a4a20,#4a8030);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;color:#fff;}
+.tb-title{font-size:13px;font-weight:700;color:#fff;}
+.tb-sub{font-size:10px;color:var(--text-dim);}
+.tb-sep{width:1px;height:22px;background:var(--border2);margin:0 4px;flex-shrink:0;}
+.tool-btn{background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text-dim);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit;transition:all .14s;white-space:nowrap;}
+.tool-btn:hover{background:rgba(255,255,255,.1);color:var(--text);border-color:var(--border2);}
+.tool-btn.active{background:var(--green-glow);border-color:var(--green);color:var(--green-hi);}
+.tool-btn.danger{border-color:rgba(200,80,50,.3);color:var(--red-hi);}
+.tool-btn.danger:hover{background:rgba(200,80,50,.1);}
+.kbd{display:inline-block;background:rgba(0,0,0,.5);border:1px solid var(--border2);border-radius:3px;padding:1px 4px;font-size:8px;font-family:monospace;color:var(--text-dim);line-height:1.4;}
+.zoom-display{font-size:11px;color:var(--green-hi);font-weight:700;min-width:36px;text-align:center;}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:6px;}
+
+/* ── MAIN LAYOUT ── */
+#main{position:fixed;top:var(--topbar);left:0;right:0;bottom:0;display:flex;}
+
+/* ── LEFT PANEL ── */
+#panel-left{
+  width:var(--left);flex-shrink:0;background:var(--panel);
+  border-right:1px solid var(--border);display:flex;flex-direction:column;
+  overflow:hidden;z-index:300;user-select:none;
+}
+.pl-hdr{padding:10px 10px 6px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-dim);border-bottom:1px solid var(--border);flex-shrink:0;}
+.pl-scroll{flex:1;overflow-y:auto;padding:8px 6px 20px;}
+.pl-scroll::-webkit-scrollbar{width:3px;}
+.pl-scroll::-webkit-scrollbar-thumb{background:#1a2a1a;border-radius:2px;}
+.cat-hdr{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);padding:8px 4px 4px;display:flex;align-items:center;gap:6px;}
+.cat-hdr::after{content:'';flex:1;height:1px;background:var(--border);}
+
+.tile-btn{
+  width:100%;background:rgba(255,255,255,.03);border:1px solid var(--border);
+  border-radius:8px;padding:7px 8px;cursor:pointer;font-family:inherit;
+  display:flex;align-items:center;gap:9px;margin-bottom:3px;
+  transition:all .13s;position:relative;overflow:hidden;
+}
+.tile-btn:hover{background:rgba(255,255,255,.07);border-color:var(--border2);}
+.tile-btn.active{background:var(--green-glow);border-color:var(--green);box-shadow:0 0 12px rgba(79,168,48,.15);}
+.tile-btn.erase{border-color:rgba(200,80,50,.2);}
+.tile-btn.erase:hover{background:rgba(200,80,50,.08);border-color:rgba(200,80,50,.4);}
+.tile-btn.erase.active{background:rgba(200,80,50,.12);border-color:rgba(200,80,50,.6);}
+
+.tile-preview{width:50px;height:32px;flex-shrink:0;border-radius:4px;overflow:hidden;position:relative;}
+.tile-preview canvas{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.62);transform-origin:center;}
+.tile-info{flex:1;text-align:left;}
+.tile-name{font-size:11px;font-weight:600;color:var(--text);display:block;line-height:1.2;}
+.tile-key{font-size:9px;color:var(--text-dim);}
+
+/* ── CANVAS AREA ── */
+#canvas-wrap{flex:1;position:relative;overflow:hidden;cursor:crosshair;}
+#canvas-wrap.pan-cursor{cursor:grab;}
+#canvas-wrap.pan-cursor.panning{cursor:grabbing;}
+#iso-canvas{display:block;position:absolute;top:0;left:0;}
+
+/* ── OVERLAYS ── */
+#hint-bar{
+  position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,.72);backdrop-filter:blur(8px);border:1px solid var(--border2);
+  border-radius:20px;padding:5px 16px;font-size:10px;color:var(--text-mid);
+  pointer-events:none;z-index:10;white-space:nowrap;
+}
+#coord-info{
+  position:absolute;bottom:14px;right:14px;
+  background:rgba(0,0,0,.6);border:1px solid var(--border);
+  border-radius:8px;padding:5px 10px;font-size:10px;color:var(--text-dim);
+  pointer-events:none;z-index:10;font-family:monospace;line-height:1.7;
+}
+#tile-indicator{
+  position:absolute;top:10px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,.7);backdrop-filter:blur(8px);border:1px solid var(--green);
+  border-radius:20px;padding:5px 16px;font-size:11px;color:var(--green-hi);font-weight:600;
+  pointer-events:none;z-index:10;transition:opacity .2s;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════ TOPBAR ═══════ -->
+<div id="topbar">
+  <div class="logo">U</div>
+  <div>
+    <div class="tb-title">UNLaM · Editor Isométrico</div>
+    <div class="tb-sub">Sprites 2D · Grilla 22×22</div>
+  </div>
+  <div class="tb-sep"></div>
+
+  <button class="tool-btn active" id="btn-paint" title="P">🖌 Pintar</button>
+  <button class="tool-btn" id="btn-fill"  title="F">🪣 Rellenar</button>
+  <button class="tool-btn" id="btn-pan"   title="Espacio">✋ Mover</button>
+
+  <div class="tb-sep"></div>
+
+  <button class="tool-btn" id="btn-grid"  title="G">⊞ Grid</button>
+  <button class="tool-btn" id="btn-zoom-in"  title="+">+</button>
+  <span class="zoom-display" id="zoom-display">60%</span>
+  <button class="tool-btn" id="btn-zoom-out" title="-">−</button>
+  <button class="tool-btn" id="btn-zoom-fit" title="0">Fit</button>
+
+  <div class="tb-right">
+    <button class="tool-btn" id="btn-undo" title="Ctrl+Z">↩ Undo</button>
+    <button class="tool-btn" id="btn-redo" title="Ctrl+Y">↪ Redo</button>
+    <button class="tool-btn danger" id="btn-clear">🗑 Limpiar</button>
+    <div class="tb-sep"></div>
+    <button class="tool-btn" id="btn-export-png">↓ PNG</button>
+    <button class="tool-btn" id="btn-export-json">↓ JSON</button>
+  </div>
+</div>
+
+<!-- ═══════ MAIN ═══════ -->
+<div id="main">
+
+  <!-- LEFT: Tile palette -->
+  <aside id="panel-left">
+    <div class="pl-hdr">🎨 Paleta de tiles</div>
+    <div class="pl-scroll" id="tile-palette"></div>
+  </aside>
+
+  <!-- CANVAS -->
+  <div id="canvas-wrap">
+    <canvas id="iso-canvas"></canvas>
+    <div id="hint-bar">
+      <span id="hint-text">Selecciona un tile y haz clic para pintar • Rueda: zoom • Clic derecho: borrar • Ctrl+Z: deshacer</span>
+    </div>
+    <div id="coord-info">
+      Col: <span id="ci-col">–</span><br/>
+      Fila: <span id="ci-row">–</span>
+    </div>
+    <div id="tile-indicator">Cemento</div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════
+//  CONSTANTS
+// ══════════════════════════════════════════════════════════════════════
+const COLS = 22, ROWS = 22;
+const TW = 80;        // tile diamond width
+const TH = 40;        // tile diamond height (top face)
+const TS = 22;        // side height
+const SW = TW;        // sprite width
+const SH = TH + TS;  // sprite height (62px)
+
+// ══════════════════════════════════════════════════════════════════════
+//  DETERMINISTIC RNG (LCG)
+// ══════════════════════════════════════════════════════════════════════
+function makeRng(seed=1234) {
+  let s = seed | 0;
+  return () => {
+    s = Math.imul(s, 1664525) + 1013904223 | 0;
+    return (s >>> 0) / 4294967296;
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  SPRITE DRAWING PRIMITIVES
+// ══════════════════════════════════════════════════════════════════════
+function mkSprite() {
+  const c = document.createElement('canvas');
+  c.width = SW; c.height = SH;
+  return c;
+}
+
+function isoTopPath(ctx) {
+  ctx.beginPath();
+  ctx.moveTo(TW/2,0); ctx.lineTo(TW,TH/2); ctx.lineTo(TW/2,TH); ctx.lineTo(0,TH/2);
+  ctx.closePath();
+}
+
+function fillLeft(ctx, color) {
+  ctx.beginPath();
+  ctx.moveTo(0,TH/2); ctx.lineTo(TW/2,TH); ctx.lineTo(TW/2,TH+TS); ctx.lineTo(0,TH/2+TS);
+  ctx.closePath(); ctx.fillStyle=color; ctx.fill();
+}
+function fillRight(ctx, color) {
+  ctx.beginPath();
+  ctx.moveTo(TW/2,TH); ctx.lineTo(TW,TH/2); ctx.lineTo(TW,TH/2+TS); ctx.lineTo(TW/2,TH+TS);
+  ctx.closePath(); ctx.fillStyle=color; ctx.fill();
+}
+function fillTop(ctx, color) {
+  isoTopPath(ctx); ctx.fillStyle=color; ctx.fill();
+}
+function strokeTop(ctx, color, lw=0.6) {
+  isoTopPath(ctx); ctx.strokeStyle=color; ctx.lineWidth=lw; ctx.stroke();
+}
+
+// Clipped noise texture on top face
+function noiseTop(ctx, rng, color, count, dotW, dotH) {
+  ctx.save(); isoTopPath(ctx); ctx.clip();
+  ctx.fillStyle=color;
+  for(let i=0;i<count;i++) {
+    const x=rng()*TW, y=rng()*TH;
+    ctx.fillRect(x, y, dotW*(0.5+rng()*1), dotH);
+  }
+  ctx.restore();
+}
+
+// Joint lines on top face using iso world→screen transform
+// sx(u,v) = (u-v)*TW/2 + TW/2   sy(u,v) = (u+v)*TH/2
+function drawJoints(ctx, color, divs=2, lw=0.85) {
+  ctx.save(); isoTopPath(ctx); ctx.clip();
+  ctx.strokeStyle=color; ctx.lineWidth=lw;
+  for(let i=1;i<divs;i++) {
+    const t=i/divs;
+    // u=t line (world column line)
+    ctx.beginPath();
+    ctx.moveTo(TW/2+t*TW/2, t*TH/2);
+    ctx.lineTo(t*TW/2,       (t+1)*TH/2);
+    ctx.stroke();
+    // v=t line (world row line)
+    ctx.beginPath();
+    ctx.moveTo((1-t)*TW/2,   t*TH/2);
+    ctx.lineTo(TW-t*TW/2,    (1+t)*TH/2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// Brick rows on a face (horizontal lines every brickH pixels)
+function brickLines(ctx, x0,y0,x1,y1,x2,y2,x3,y3, color, brickH=5) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.lineTo(x2,y2); ctx.lineTo(x3,y3);
+  ctx.closePath(); ctx.clip();
+  ctx.strokeStyle=color; ctx.lineWidth=0.8;
+  for(let dy=brickH;dy<TS+TH;dy+=brickH) {
+    ctx.beginPath();
+    // Interpolate along left and right edges to draw horizontal line across this face
+    ctx.moveTo(x0+(x3-x0)*dy/TS, y0+(y3-y0)*dy/TS);
+    ctx.lineTo(x1+(x2-x1)*dy/TS, y1+(y2-y1)*dy/TS);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  SPRITE GENERATORS
+// ══════════════════════════════════════════════════════════════════════
+
+function genConcrete() {
+  const c=mkSprite(), ctx=c.getContext('2d'), rng=makeRng(111);
+  fillRight(ctx,'#909088'); fillLeft(ctx,'#aca49c');
+  fillTop(ctx,'#d0c8bc');
+  noiseTop(ctx,rng,'rgba(148,140,130,0.13)',28,5,1);
+  drawJoints(ctx,'rgba(150,143,135,0.6)',2);
+  strokeTop(ctx,'rgba(100,95,88,0.2)');
+  return c;
+}
+
+function genGrass() {
+  const c=mkSprite(), ctx=c.getContext('2d'), rng=makeRng(222);
+  fillRight(ctx,'#5a3818'); fillLeft(ctx,'#7c5222');
+  fillTop(ctx,'#4a9030');
+  noiseTop(ctx,rng,'rgba(22,72,10,0.28)',55,5,2);
+  noiseTop(ctx,rng,'rgba(22,72,10,0.2)',35,3,3);
+  noiseTop(ctx,rng,'rgba(105,180,50,0.18)',25,4,1);
+  noiseTop(ctx,rng,'rgba(12,50,5,0.3)',18,2,2);
+  strokeTop(ctx,'rgba(40,95,20,0.35)');
+  return c;
+}
+
+function genGrassBorder() {
+  const c=mkSprite(), ctx=c.getContext('2d'), rng=makeRng(333);
+  // Brick sides
+  fillRight(ctx,'#7a2e1a');
+  fillLeft(ctx,'#a83c24');
+  // Brick mortar lines on left face
+  brickLines(ctx, 0,TH/2, TW/2,TH, TW/2,TH+TS, 0,TH/2+TS, 'rgba(50,12,5,0.45)', 5);
+  // Brick mortar lines on right face
+  brickLines(ctx, TW/2,TH, TW,TH/2, TW,TH/2+TS, TW/2,TH+TS, 'rgba(50,12,5,0.35)', 5);
+  // Vertical brick joints on left face
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(0,TH/2); ctx.lineTo(TW/2,TH); ctx.lineTo(TW/2,TH+TS); ctx.lineTo(0,TH/2+TS);
+  ctx.closePath(); ctx.clip();
+  ctx.strokeStyle='rgba(50,12,5,0.3)'; ctx.lineWidth=0.8;
+  for(let x=8;x<TW/2;x+=12){
+    ctx.beginPath(); ctx.moveTo(x,TH/2+(x/(TW/2))*(TH/2)); ctx.lineTo(x,TH+TS); ctx.stroke();
+  }
+  ctx.restore();
+  // Green top
+  fillTop(ctx,'#4a9030');
+  // Thin red border strip inside top face
+  ctx.save(); isoTopPath(ctx); ctx.clip();
+  ctx.strokeStyle='rgba(160,50,25,0.7)'; ctx.lineWidth=3;
+  isoTopPath(ctx); ctx.stroke();
+  ctx.restore();
+  // Grass texture
+  noiseTop(ctx,rng,'rgba(22,72,10,0.28)',50,5,2);
+  noiseTop(ctx,rng,'rgba(105,180,50,0.18)',22,4,1);
+  noiseTop(ctx,rng,'rgba(12,50,5,0.3)',16,2,2);
+  return c;
+}
+
+function genRoad() {
+  const c=mkSprite(), ctx=c.getContext('2d'), rng=makeRng(444);
+  fillRight(ctx,'#282826'); fillLeft(ctx,'#343432');
+  fillTop(ctx,'#525050');
+  noiseTop(ctx,rng,'rgba(75,72,68,0.3)',40,4,1);
+  noiseTop(ctx,rng,'rgba(35,33,30,0.25)',20,3,1);
+  // Dashed center line (world v=0.5)
+  ctx.save(); isoTopPath(ctx); ctx.clip();
+  ctx.strokeStyle='rgba(220,205,100,0.55)'; ctx.lineWidth=1.6; ctx.setLineDash([7,6]);
+  ctx.beginPath();
+  ctx.moveTo(TW/4, TH/4); ctx.lineTo(3*TW/4, 3*TH/4);
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.restore();
+  strokeTop(ctx,'rgba(40,40,38,0.3)');
+  return c;
+}
+
+function genSidewalk() {
+  const c=mkSprite(), ctx=c.getContext('2d'), rng=makeRng(555);
+  fillRight(ctx,'#a8a09a'); fillLeft(ctx,'#c0b8ae');
+  fillTop(ctx,'#ddd5cb');
+  noiseTop(ctx,rng,'rgba(175,165,153,0.15)',22,4,1);
+  drawJoints(ctx,'rgba(168,160,150,0.5)',2);
+  strokeTop(ctx,'rgba(150,142,132,0.25)');
+  return c;
+}
+
+function genSoil() {
+  const c=mkSprite(), ctx=c.getContext('2d'), rng=makeRng(666);
+  fillRight(ctx,'#4a3615'); fillLeft(ctx,'#664c25');
+  fillTop(ctx,'#8a6633');
+  noiseTop(ctx,rng,'rgba(55,38,14,0.22)',38,5,2);
+  noiseTop(ctx,rng,'rgba(135,98,48,0.18)',22,4,1);
+  noiseTop(ctx,rng,'rgba(38,25,8,0.35)',12,3,3);
+  return c;
+}
+
+function genPath() {
+  const c=mkSprite(), ctx=c.getContext('2d'), rng=makeRng(777);
+  fillRight(ctx,'#7a5c38'); fillLeft(ctx,'#9a7a50');
+  fillTop(ctx,'#be9e6c');
+  noiseTop(ctx,rng,'rgba(95,72,38,0.2)',42,5,2);
+  noiseTop(ctx,rng,'rgba(175,140,88,0.18)',26,4,1);
+  noiseTop(ctx,rng,'rgba(75,55,28,0.35)',14,3,3);
+  return c;
+}
+
+function genWater() {
+  const c=mkSprite(), ctx=c.getContext('2d');
+  fillRight(ctx,'#1a4888'); fillLeft(ctx,'#1a60b2');
+  fillTop(ctx,'#2878cc');
+  // Gradient sheen
+  ctx.save(); isoTopPath(ctx); ctx.clip();
+  const grd=ctx.createLinearGradient(0,0,TW,TH);
+  grd.addColorStop(0,'rgba(120,200,255,0.15)');
+  grd.addColorStop(1,'rgba(10,50,140,0.15)');
+  ctx.fillStyle=grd; ctx.fill();
+  // Ripple lines
+  ctx.strokeStyle='rgba(120,185,255,0.28)'; ctx.lineWidth=0.9;
+  for(let y=5;y<TH;y+=7){
+    ctx.beginPath();
+    for(let x=0;x<=TW;x+=4){
+      const wy=y+Math.sin(x/TW*Math.PI*4+y)*2;
+      x===0?ctx.moveTo(x,wy):ctx.lineTo(x,wy);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+  strokeTop(ctx,'rgba(20,80,180,0.35)');
+  return c;
+}
+
+function genCement2x() {
+  // Larger looking concrete (2×2 joints)
+  const c=mkSprite(), ctx=c.getContext('2d'), rng=makeRng(888);
+  fillRight(ctx,'#8a8480'); fillLeft(ctx,'#a89e96');
+  fillTop(ctx,'#cec7bb');
+  noiseTop(ctx,rng,'rgba(145,138,128,0.12)',25,5,1);
+  drawJoints(ctx,'rgba(148,140,130,0.65)',4); // 4 divisions = more joints
+  strokeTop(ctx,'rgba(100,95,88,0.2)');
+  return c;
+}
+
+function genEraser() {
+  const c=mkSprite(), ctx=c.getContext('2d');
+  fillRight(ctx,'rgba(200,80,50,0.15)');
+  fillLeft(ctx,'rgba(200,80,50,0.2)');
+  fillTop(ctx,'rgba(200,80,50,0.12)');
+  ctx.save(); isoTopPath(ctx); ctx.clip();
+  ctx.strokeStyle='rgba(230,90,60,0.6)'; ctx.lineWidth=1.5; ctx.setLineDash([4,3]);
+  isoTopPath(ctx); ctx.stroke(); ctx.setLineDash([]);
+  ctx.restore();
+  // X mark
+  ctx.save(); isoTopPath(ctx); ctx.clip();
+  ctx.strokeStyle='rgba(230,90,60,0.55)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(TW*0.3,TH*0.3); ctx.lineTo(TW*0.7,TH*0.7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(TW*0.7,TH*0.3); ctx.lineTo(TW*0.3,TH*0.7); ctx.stroke();
+  ctx.restore();
+  return c;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  TILE CATALOG
+// ══════════════════════════════════════════════════════════════════════
+const TILE_DEFS = [
+  { id:'concrete',     label:'Cemento',      key:'1', cat:'Superficies',  gen:genConcrete    },
+  { id:'cement2x',     label:'Cemento 2×',   key:'2', cat:'Superficies',  gen:genCement2x    },
+  { id:'sidewalk',     label:'Vereda',        key:'3', cat:'Superficies',  gen:genSidewalk    },
+  { id:'road',         label:'Asfalto',       key:'4', cat:'Calles',       gen:genRoad        },
+  { id:'path',         label:'Sendero',       key:'5', cat:'Calles',       gen:genPath        },
+  { id:'grass',        label:'Césped',        key:'6', cat:'Vegetación',   gen:genGrass       },
+  { id:'grass_border', label:'Cantero',       key:'7', cat:'Vegetación',   gen:genGrassBorder },
+  { id:'soil',         label:'Tierra',        key:'8', cat:'Vegetación',   gen:genSoil        },
+  { id:'water',        label:'Agua',          key:'9', cat:'Otros',        gen:genWater       },
+  { id:'__erase__',    label:'Borrar',        key:'X', cat:'Herramienta',  gen:genEraser, isErase:true },
+];
+
+const SPRITES = {};
+TILE_DEFS.forEach(d => { SPRITES[d.id] = d.gen(); });
+
+// ══════════════════════════════════════════════════════════════════════
+//  GRID STATE
+// ══════════════════════════════════════════════════════════════════════
+let grid = Array.from({length:ROWS}, ()=>Array(COLS).fill(null));
+
+const undoStack = [], redoStack = [];
+
+function applyChange(changes) {
+  changes.forEach(({r,c,from,to})=>{ grid[r][c]=to; });
+}
+function undoChange(changes) {
+  changes.forEach(({r,c,from,to})=>{ grid[r][c]=from; });
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  CANVAS + VIEWPORT
+// ══════════════════════════════════════════════════════════════════════
+const wrap   = document.getElementById('canvas-wrap');
+const canvas = document.getElementById('iso-canvas');
+const ctx    = canvas.getContext('2d');
+
+let scale  = 0.62;
+let panX   = 0, panY = 0;
+let showGrid = true;
+let hoverCell = null;   // {r,c} or null
+let dirtyRender = true;
+
+function resizeCanvas() {
+  canvas.width  = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  // Center grid on first load
+  const ox = originX(), oy = originY();
+  dirtyRender = true;
+}
+
+// Screen position of the top vertex of tile (0,0)
+function originX() { return canvas.width/2 + panX - (COLS-ROWS)*TW/2*scale/2; }
+function originY() { return 40 + panY; }
+
+// Screen position of tile (c,r) top vertex
+function tileScreen(c,r) {
+  const ox=originX(), oy=originY();
+  return {
+    x: ox + (c-r)*(TW/2)*scale,
+    y: oy + (c+r)*(TH/2)*scale,
+  };
+}
+
+// Convert screen (mx,my) to grid cell — inverse of tileScreen
+function screenToCell(mx,my) {
+  const ox=originX(), oy=originY();
+  const dx=(mx-ox)/scale, dy=(my-oy)/scale;
+  const col=Math.floor(dx/TW + dy/TH);
+  const row=Math.floor(dy/TH - dx/TW);
+  return {col,row};
+}
+
+function inBounds(c,r){ return c>=0&&c<COLS&&r>=0&&r<ROWS; }
+
+// ══════════════════════════════════════════════════════════════════════
+//  RENDERING
+// ══════════════════════════════════════════════════════════════════════
+// Pre-generate ghost (semi-transparent) overlay canvas
+const ghostCanvas = document.createElement('canvas');
+ghostCanvas.width=SW; ghostCanvas.height=SH;
+
+function makeGhost(spriteId) {
+  const gc=ghostCanvas.getContext('2d');
+  gc.clearRect(0,0,SW,SH);
+  gc.globalAlpha=0.5;
+  gc.drawImage(SPRITES[spriteId],0,0);
+  gc.globalAlpha=1;
+  // Tint with white
+  gc.globalCompositeOperation='lighter';
+  gc.fillStyle='rgba(255,255,255,0.1)';
+  isoTopPath(gc); gc.fill();
+  gc.globalCompositeOperation='source-over';
+}
+
+function drawIsoOutline(ctx, sx, sy, color='rgba(80,160,80,0.18)') {
+  ctx.save();
+  ctx.translate(sx - (TW/2)*scale, sy);
+  ctx.scale(scale, scale);
+  isoTopPath(ctx);
+  ctx.strokeStyle=color; ctx.lineWidth=1/scale;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function render() {
+  if(!dirtyRender) return;
+  dirtyRender=false;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // Background
+  ctx.fillStyle='#0e1a0e';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  const sw=TW*scale, sh=SH*scale;
+
+  // Draw back-to-front (painter's algorithm): sort by c+r ascending
+  for(let sum=0; sum<=(COLS-1)+(ROWS-1); sum++) {
+    for(let r=0; r<ROWS; r++) {
+      const c=sum-r;
+      if(c<0||c>=COLS) continue;
+      const {x:sx, y:sy}=tileScreen(c,r);
+
+      // Skip tiles fully outside viewport
+      if(sx+sw<0||sx-sw>canvas.width||sy+sh<0||sy>canvas.height) continue;
+
+      const drawX=sx-(TW/2)*scale, drawY=sy;
+      const tileId=grid[r][c];
+
+      if(tileId && SPRITES[tileId]) {
+        ctx.drawImage(SPRITES[tileId], drawX, drawY, sw, sh);
+      } else if(showGrid) {
+        // Draw faint empty cell outline
+        ctx.save();
+        ctx.translate(drawX, drawY);
+        ctx.scale(scale,scale);
+        isoTopPath(ctx);
+        ctx.strokeStyle='rgba(60,120,60,0.18)'; ctx.lineWidth=0.8/scale;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Hover highlight
+      if(hoverCell&&hoverCell.c===c&&hoverCell.r===r) {
+        const selId=currentTileId;
+        if(selId && SPRITES[selId]) {
+          ctx.save();
+          ctx.globalAlpha=0.55;
+          ctx.drawImage(SPRITES[selId], drawX, drawY, sw, sh);
+          ctx.globalAlpha=1;
+          ctx.restore();
+        }
+        // Bright outline
+        ctx.save();
+        ctx.translate(drawX,drawY);
+        ctx.scale(scale,scale);
+        isoTopPath(ctx);
+        ctx.strokeStyle='rgba(150,255,120,0.7)'; ctx.lineWidth=1.5/scale;
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+  }
+  document.getElementById('zoom-display').textContent=Math.round(scale*100)+'%';
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  EDITOR STATE
+// ══════════════════════════════════════════════════════════════════════
+let currentTileId = 'concrete';
+let toolMode      = 'paint';  // 'paint'|'fill'|'pan'
+let isPainting    = false;
+let isPanning     = false;
+let panStart      = {x:0,y:0};
+let batchChanges  = null;  // for drag paint batch
+let batchSeen     = new Set();
+
+function setTile(id) {
+  currentTileId=id;
+  // Update UI
+  document.querySelectorAll('.tile-btn').forEach(b=>b.classList.toggle('active',b.dataset.id===id));
+  const def=TILE_DEFS.find(d=>d.id===id);
+  document.getElementById('tile-indicator').textContent=def?def.label:'–';
+}
+
+function setTool(t){
+  toolMode=t;
+  ['paint','fill','pan'].forEach(id=>{
+    const btn=document.getElementById('btn-'+id);
+    if(btn) btn.classList.toggle('active',id===t);
+  });
+  const wrap=document.getElementById('canvas-wrap');
+  wrap.classList.toggle('pan-cursor',t==='pan');
+  canvas.style.cursor=t==='pan'?'grab':t==='paint'?'crosshair':'cell';
+}
+
+// Paint single cell
+function paintCell(c,r,tileId,batch) {
+  if(!inBounds(c,r)) return;
+  const batchKey=`${r},${c}`;
+  const prev=grid[r][c];
+  const next=tileId==='__erase__'?null:tileId;
+  if(prev===next) return;
+  if(batch&&batchSeen.has(batchKey)) return;
+  grid[r][c]=next;
+  batch&&batchSeen.add(batchKey);
+  if(batch) batch.push({r,c,from:prev,to:next});
+  dirtyRender=true;
+}
+
+// Flood fill
+function floodFill(startC,startR,tileId) {
+  const target=grid[startR][startC];
+  const replacement=tileId==='__erase__'?null:tileId;
+  if(target===replacement) return;
+  const changes=[];
+  const queue=[{c:startC,r:startR}];
+  const visited=new Set();
+  while(queue.length){
+    const {c,r}=queue.shift();
+    if(!inBounds(c,r)||visited.has(`${r},${c}`)) continue;
+    visited.add(`${r},${c}`);
+    if(grid[r][c]!==target) continue;
+    changes.push({r,c,from:grid[r][c],to:replacement});
+    grid[r][c]=replacement;
+    [[c+1,r],[c-1,r],[c,r+1],[c,r-1]].forEach(([nc,nr])=>queue.push({c:nc,r:nr}));
+  }
+  if(changes.length){
+    undoStack.push(changes); redoStack.length=0;
+    dirtyRender=true;
+  }
+}
+
+function undo() {
+  const ch=undoStack.pop(); if(!ch) return;
+  undoChange(ch); redoStack.push(ch); dirtyRender=true;
+}
+function redo() {
+  const ch=redoStack.pop(); if(!ch) return;
+  applyChange(ch); undoStack.push(ch); dirtyRender=true;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  MOUSE EVENTS
+// ══════════════════════════════════════════════════════════════════════
+function getCell(e) {
+  const r2=canvas.getBoundingClientRect();
+  const mx=e.clientX-r2.left, my=e.clientY-r2.top;
+  const {col,row}=screenToCell(mx,my);
+  return {col,row,mx,my};
+}
+
+canvas.addEventListener('mousemove',e=>{
+  const {col,row,mx,my}=getCell(e);
+  // Coord display
+  if(inBounds(col,row)){
+    document.getElementById('ci-col').textContent=col;
+    document.getElementById('ci-row').textContent=row;
+    hoverCell={c:col,r:row};
+  } else {
+    hoverCell=null;
+    document.getElementById('ci-col').textContent='–';
+    document.getElementById('ci-row').textContent='–';
+  }
+  dirtyRender=true;
+
+  if(isPanning) {
+    panX+=(e.clientX-panStart.x); panY+=(e.clientY-panStart.y);
+    panStart={x:e.clientX,y:e.clientY};
+    dirtyRender=true;
+    return;
+  }
+  if(isPainting&&toolMode==='paint'&&inBounds(col,row)) {
+    const tileId=e.buttons===2?'__erase__':currentTileId;
+    paintCell(col,row,tileId,batchChanges);
+  }
+});
+
+canvas.addEventListener('mousedown',e=>{
+  e.preventDefault();
+  const {col,row}=getCell(e);
+
+  if(toolMode==='pan'||(e.button===1)||(e.button===0&&e.altKey)) {
+    isPanning=true;
+    panStart={x:e.clientX,y:e.clientY};
+    canvas.style.cursor='grabbing';
+    return;
+  }
+
+  if(e.button===0&&toolMode==='fill'&&inBounds(col,row)){
+    floodFill(col,row,currentTileId); return;
+  }
+
+  if((e.button===0||e.button===2)&&toolMode==='paint'&&inBounds(col,row)){
+    isPainting=true;
+    batchChanges=[]; batchSeen=new Set();
+    const tileId=e.button===2?'__erase__':currentTileId;
+    paintCell(col,row,tileId,batchChanges);
+  }
+});
+
+canvas.addEventListener('mouseup',e=>{
+  if(isPainting){
+    if(batchChanges&&batchChanges.length){
+      undoStack.push(batchChanges); redoStack.length=0;
+    }
+    batchChanges=null; batchSeen=new Set();
+  }
+  isPainting=false;
+  isPanning=false;
+  if(toolMode==='pan') canvas.style.cursor='grab';
+  else canvas.style.cursor='crosshair';
+});
+
+canvas.addEventListener('mouseleave',()=>{
+  hoverCell=null; dirtyRender=true;
+  if(isPainting&&batchChanges?.length){ undoStack.push(batchChanges); redoStack.length=0; }
+  isPainting=false; isPanning=false; batchChanges=null;
+});
+
+canvas.addEventListener('contextmenu',e=>{
+  e.preventDefault();
+  if(!isPainting) {
+    const {col,row}=getCell(e);
+    if(inBounds(col,row)){
+      const prev=grid[row][col];
+      grid[row][col]=null;
+      undoStack.push([{r:row,c:col,from:prev,to:null}]);
+      redoStack.length=0; dirtyRender=true;
+    }
+  }
+});
+
+// Zoom with scroll wheel
+canvas.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const factor=e.deltaY<0?1.1:1/1.1;
+  const {mx,my}=getCell(e); // reuse for mouse pos
+  const r2=canvas.getBoundingClientRect();
+  const mx2=e.clientX-r2.left, my2=e.clientY-r2.top;
+
+  // Zoom towards mouse
+  const ox0=originX(), oy0=originY();
+  const dx=mx2-ox0, dy=my2-oy0;
+
+  scale=Math.max(0.2,Math.min(3,scale*factor));
+  const ox1=originX(), oy1=originY();
+  panX+=ox0-ox1-dx+dx/factor;
+  panY+=oy0-oy1-dy+dy/factor;
+  dirtyRender=true;
+},{passive:false});
+
+// ══════════════════════════════════════════════════════════════════════
+//  KEYBOARD
+// ══════════════════════════════════════════════════════════════════════
+window.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT') return;
+  if(e.ctrlKey||e.metaKey){
+    if(e.key==='z'){ e.preventDefault(); e.shiftKey?redo():undo(); return; }
+    if(e.key==='y'){ e.preventDefault(); redo(); return; }
+    return;
+  }
+  if(e.key===' '){ e.preventDefault(); setTool('pan'); return; }
+  if(e.key==='p'||e.key==='P'){ setTool('paint'); return; }
+  if(e.key==='f'||e.key==='F'){ setTool('fill'); return; }
+  if(e.key==='g'||e.key==='G'){
+    showGrid=!showGrid;
+    document.getElementById('btn-grid').classList.toggle('active',showGrid);
+    dirtyRender=true; return;
+  }
+  // Number key tile shortcuts
+  TILE_DEFS.forEach(d=>{
+    if(e.key===d.key||e.key===d.key.toLowerCase()){ setTile(d.id); setTool('paint'); }
+  });
+});
+window.addEventListener('keyup',e=>{
+  if(e.key===' '&&toolMode==='pan') setTool('paint');
+});
+
+// ══════════════════════════════════════════════════════════════════════
+//  TOOLBAR EVENTS
+// ══════════════════════════════════════════════════════════════════════
+document.getElementById('btn-paint').addEventListener('click',()=>setTool('paint'));
+document.getElementById('btn-fill' ).addEventListener('click',()=>setTool('fill'));
+document.getElementById('btn-pan'  ).addEventListener('click',()=>setTool('pan'));
+document.getElementById('btn-grid' ).addEventListener('click',()=>{
+  showGrid=!showGrid;
+  document.getElementById('btn-grid').classList.toggle('active',showGrid);
+  dirtyRender=true;
+});
+document.getElementById('btn-undo').addEventListener('click',undo);
+document.getElementById('btn-redo').addEventListener('click',redo);
+document.getElementById('btn-zoom-in' ).addEventListener('click',()=>{ scale=Math.min(3,scale*1.2); dirtyRender=true; });
+document.getElementById('btn-zoom-out').addEventListener('click',()=>{ scale=Math.max(0.2,scale/1.2); dirtyRender=true; });
+document.getElementById('btn-zoom-fit').addEventListener('click',()=>{ scale=0.62; panX=0; panY=0; dirtyRender=true; });
+
+document.getElementById('btn-clear').addEventListener('click',()=>{
+  if(!confirm('¿Borrar todo el mapa?')) return;
+  const changes=[];
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) if(grid[r][c]!==null){
+    changes.push({r,c,from:grid[r][c],to:null}); grid[r][c]=null;
+  }
+  if(changes.length){ undoStack.push(changes); redoStack.length=0; }
+  dirtyRender=true;
+});
+
+document.getElementById('btn-export-png').addEventListener('click',()=>{
+  // Render to a clean offscreen canvas
+  const data=canvas.toDataURL('image/png');
+  const a=document.createElement('a');
+  a.href=data; a.download='campus_map.png'; a.click();
+});
+
+document.getElementById('btn-export-json').addEventListener('click',()=>{
+  const cells=[];
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) if(grid[r][c]){
+    cells.push({col:c,row:r,tile:grid[r][c]});
+  }
+  const json=JSON.stringify({cols:COLS,rows:ROWS,cells},null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download='campus_map.json'; a.click();
+});
+
+// ══════════════════════════════════════════════════════════════════════
+//  BUILD TILE PALETTE (left panel)
+// ══════════════════════════════════════════════════════════════════════
+function buildPalette() {
+  const palette=document.getElementById('tile-palette');
+  const byCategory={};
+  TILE_DEFS.forEach(d=>{
+    if(!byCategory[d.cat]) byCategory[d.cat]=[];
+    byCategory[d.cat].push(d);
+  });
+  Object.entries(byCategory).forEach(([cat,tiles])=>{
+    const hdr=document.createElement('div');
+    hdr.className='cat-hdr'; hdr.textContent=cat;
+    palette.appendChild(hdr);
+    tiles.forEach(d=>{
+      const btn=document.createElement('button');
+      btn.className='tile-btn'+(d.isErase?' erase':'');
+      btn.dataset.id=d.id;
+
+      // Preview: mini canvas showing the sprite
+      const prev=document.createElement('div');
+      prev.className='tile-preview';
+      const previewC=document.createElement('canvas');
+      previewC.width=SW; previewC.height=SH;
+      previewC.getContext('2d').drawImage(SPRITES[d.id],0,0);
+      prev.appendChild(previewC);
+
+      const info=document.createElement('div');
+      info.className='tile-info';
+      info.innerHTML=`<span class="tile-name">${d.label}</span><span class="tile-key"><kbd style="background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.15);border-radius:3px;padding:1px 4px;font-size:8px;font-family:monospace;">${d.key}</kbd></span>`;
+
+      btn.append(prev,info);
+      btn.addEventListener('click',()=>{ setTile(d.id); if(toolMode!=='paint') setTool('paint'); });
+      palette.appendChild(btn);
+    });
+  });
+}
+buildPalette();
+
+// ══════════════════════════════════════════════════════════════════════
+//  RESIZE
+// ══════════════════════════════════════════════════════════════════════
+const resizeObs=new ResizeObserver(()=>{ resizeCanvas(); dirtyRender=true; });
+resizeObs.observe(wrap);
+resizeCanvas();
+
+// ══════════════════════════════════════════════════════════════════════
+//  RENDER LOOP
+// ══════════════════════════════════════════════════════════════════════
+function loop() {
+  render();
+  requestAnimationFrame(loop);
+}
+loop();
+
+// ══════════════════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════════════════
+setTile('concrete');
+setTool('paint');
+document.getElementById('btn-grid').classList.add('active');
+document.getElementById('btn-paint').classList.add('active');
+
+console.log('%c UNLaM Isometric Editor · Ready ✓ ', 'background:#2a5a1a;color:#7ecc55;font-weight:bold;padding:4px 10px;border-radius:4px;');
+console.log('Tiles disponibles:', TILE_DEFS.map(d=>d.id).join(', '));
+</script>
+</body>
+</html>
