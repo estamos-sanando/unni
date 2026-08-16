@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>UNLaM – Mapa Isométrico 3D · Etapa 1</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #1a1f2e;
+      --panel-bg: rgba(15, 18, 28, 0.92);
+      --border: rgba(255,255,255,0.08);
+      --accent: #6c8ebf;
+      --accent-hi: #8fb3e8;
+      --text: #cdd5e0;
+      --text-dim: #6b7a8d;
+      --font: system-ui, sans-serif;
+    }
+
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: var(--bg);
+      font-family: var(--font);
+      color: var(--text);
+    }
+
+    #canvas-container {
+      position: absolute; inset: 0;
+    }
+    canvas { display: block; width: 100% !important; height: 100% !important; }
+
+    #topbar {
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 48px;
+      background: var(--panel-bg);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      display: flex; align-items: center; gap: 12px; padding: 0 16px;
+      z-index: 100;
+    }
+    .logo-dot {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: linear-gradient(135deg, #3a5a8a, #5b82b5);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 11px; color: #fff;
+      flex-shrink: 0;
+    }
+    .tb-title { font-size: 13px; font-weight: 600; color: #fff; }
+    .tb-sub { font-size: 10px; color: var(--text-dim); }
+    .tb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+    .stage-badge {
+      background: rgba(108,142,191,0.15); border: 1px solid rgba(108,142,191,0.3);
+      color: var(--accent-hi); border-radius: 20px; padding: 3px 10px;
+      font-size: 10px; font-weight: 600; letter-spacing: 0.05em;
+    }
+    .tb-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .tb-btn {
+      background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+      color: var(--text); border-radius: 6px; padding: 5px 10px;
+      font-size: 11px; cursor: pointer; font-family: var(--font);
+      display: flex; align-items: center; gap: 5px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .tb-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); }
+    .tb-btn.active { background: rgba(108,142,191,0.2); border-color: var(--accent); color: var(--accent-hi); }
+
+    #legend {
+      position: absolute; bottom: 20px; right: 20px;
+      background: var(--panel-bg); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px;
+      backdrop-filter: blur(12px);
+      min-width: 180px; z-index: 100;
+    }
+    .legend-title {
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 10px;
+    }
+    .legend-item {
+      display: flex; align-items: center; gap: 9px;
+      font-size: 11px; color: var(--text); margin-bottom: 7px;
+    }
+    .legend-item:last-child { margin-bottom: 0; }
+    .legend-swatch {
+      width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    #info-panel {
+      position: absolute; top: 60px; left: 16px;
+      background: var(--panel-bg); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 14px;
+      backdrop-filter: blur(12px);
+      font-size: 11px; color: var(--text-dim);
+      z-index: 100; line-height: 1.7;
+      pointer-events: none;
+    }
+    #info-panel strong { color: var(--text); }
+
+    #controls-hint {
+      position: absolute; bottom: 20px; left: 20px;
+      background: var(--panel-bg); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 14px;
+      backdrop-filter: blur(12px);
+      font-size: 10px; color: var(--text-dim);
+      z-index: 100; line-height: 1.8;
+    }
+    #controls-hint strong {
+      color: var(--text); display: block; margin-bottom: 3px;
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em;
+    }
+
+    #grid-indicator {
+      position: absolute; top: 60px; right: 20px;
+      background: var(--panel-bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 6px 12px;
+      font-size: 10px; color: var(--text-dim);
+      backdrop-filter: blur(12px); z-index: 100;
+    }
+    #grid-indicator span { color: var(--accent-hi); font-weight: 700; }
+  </style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div id="topbar">
+  <div class="logo-dot">U</div>
+  <div>
+    <div class="tb-title">UNLaM · Campus Mapa 3D</div>
+    <div class="tb-sub">Mapa Isométrico Interactivo</div>
+  </div>
+  <div class="tb-sep"></div>
+  <div class="stage-badge">ETAPA 1 · BASE TERRENO</div>
+  <div class="tb-right">
+    <button class="tb-btn" id="btn-reset-cam">⟳ Reset Cámara</button>
+    <button class="tb-btn" id="btn-toggle-grid">⊞ Grid</button>
+    <button class="tb-btn" id="btn-toggle-labels">◈ Labels</button>
+    <button class="tb-btn" id="btn-top-view">▲ Vista Top</button>
+    <button class="tb-btn active" id="btn-iso-view">◆ Isométrico</button>
+  </div>
+</div>
+
+<div id="info-panel">
+  <strong>Escala del mundo</strong><br/>
+  1 unidad = 1 metro<br/>
+  Mapa: ~120 × 80 m<br/>
+  <br/>
+  <strong>Jerarquía de escena</strong><br/>
+  MAP / Roads / Sidewalks<br/>
+  Curbs / GrassSlots / BuildingSlots
+</div>
+
+<div id="grid-indicator">
+  Grid: <span>1m × 1m</span> · 120×80 celdas
+</div>
+
+<div id="controls-hint">
+  <strong>Controles</strong>
+  🖱 Arrastrar · Rotar<br/>
+  🖱 Rueda · Zoom<br/>
+  🖱 Derecho · Pan<br/>
+  ⌨ R · Reset Cámara
+</div>
+
+<div id="legend">
+  <div class="legend-title">Referencias del Mapa</div>
+  <div class="legend-item">
+    <div class="legend-swatch" style="background:#c8c0b2;"></div>Superficie cemento
+  </div>
+  <div class="legend-item">
+    <div class="legend-swatch" style="background:#a8a098;"></div>Calles internas
+  </div>
+  <div class="legend-item">
+    <div class="legend-swatch" style="background:#d4ccc0;"></div>Veredas elevadas
+  </div>
+  <div class="legend-item">
+    <div class="legend-swatch" style="background:#88827a;"></div>Cordones / bordes
+  </div>
+  <div class="legend-item">
+    <div class="legend-swatch" style="background:#4a5c3a; border-color:rgba(100,180,60,0.3);"></div>Canteros (césped futuro)
+  </div>
+  <div class="legend-item">
+    <div class="legend-swatch" style="background:#3a4a6a; border-color:rgba(80,120,200,0.3);"></div>Footprint Edificio
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.167.1/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ══════════════════════════════════════════════════════════════════
+//  CONSTANTS
+//  Escala: 1 unidad THREE = 1 metro real
+// ══════════════════════════════════════════════════════════════════
+const MAP_W = 120;
+const MAP_D = 80;
+
+const LAYER_H = {
+  ground:       0.00,
+  road:         0.02,
+  sidewalk:     0.15,
+  curb:         0.12,
+  grassSlot:    0.04,
+  buildingBase: 0.08
+};
+
+// ══════════════════════════════════════════════════════════════════
+//  RENDERER
+// ══════════════════════════════════════════════════════════════════
+const container = document.getElementById('canvas-container');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+container.appendChild(renderer.domElement);
+
+// ══════════════════════════════════════════════════════════════════
+//  SCENE
+// ══════════════════════════════════════════════════════════════════
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x18202e);
+scene.fog = new THREE.Fog(0x18202e, 160, 300);
+
+// ══════════════════════════════════════════════════════════════════
+//  CAMERA (Orthographic — True Isometric)
+// ══════════════════════════════════════════════════════════════════
+const CAM_SIZE = 58;
+let aspect = container.clientWidth / container.clientHeight;
+const camera = new THREE.OrthographicCamera(
+  -CAM_SIZE * aspect,  CAM_SIZE * aspect,
+   CAM_SIZE,          -CAM_SIZE,
+  -500, 1000
+);
+
+function setIsoCam() {
+  const dist = 130;
+  const phi  = Math.atan(1 / Math.sqrt(2)); // ~35.26° true iso
+  const theta = Math.PI / 4;                // 45°
+  camera.position.set(
+    dist * Math.cos(phi) * Math.sin(theta),
+    dist * Math.sin(phi),
+    dist * Math.cos(phi) * Math.cos(theta)
+  );
+  camera.lookAt(0, 0, 0);
+  camera.updateProjectionMatrix();
+}
+setIsoCam();
+
+// ══════════════════════════════════════════════════════════════════
+//  ORBIT CONTROLS
+// ══════════════════════════════════════════════════════════════════
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.screenSpacePanning = true;
+controls.minZoom = 0.25;
+controls.maxZoom = 5;
+controls.maxPolarAngle = Math.PI / 2 - 0.02;
+controls.mouseButtons = {
+  LEFT: THREE.MOUSE.ROTATE,
+  MIDDLE: THREE.MOUSE.DOLLY,
+  RIGHT: THREE.MOUSE.PAN
+};
+
+// ══════════════════════════════════════════════════════════════════
+//  MATERIALS
+// ══════════════════════════════════════════════════════════════════
+const M = {};
+
+function initMaterials() {
+  M.ground         = new THREE.MeshLambertMaterial({ color: 0xc8c0b2 });
+  M.groundAlt      = new THREE.MeshLambertMaterial({ color: 0xc1bab0 });
+  M.road           = new THREE.MeshLambertMaterial({ color: 0xa8a098 });
+  M.roadMark       = new THREE.MeshLambertMaterial({ color: 0x959088 });
+  M.sidewalk       = new THREE.MeshLambertMaterial({ color: 0xd4ccc0 });
+  M.sidewalkAlt    = new THREE.MeshLambertMaterial({ color: 0xcec8bc });
+  M.curb           = new THREE.MeshLambertMaterial({ color: 0x888078 });
+  M.grassSlot      = new THREE.MeshLambertMaterial({ color: 0x4a5c3a });
+  M.grassBorder    = new THREE.MeshLambertMaterial({ color: 0x3a4830 });
+  M.buildingSlot   = new THREE.MeshLambertMaterial({ color: 0x38496a });
+  M.buildingBorder = new THREE.MeshLambertMaterial({ color: 0x2c3854 });
+  M.step           = new THREE.MeshLambertMaterial({ color: 0xb5afa5 });
+  M.gridMinor      = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.045 });
+  M.gridMajor      = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.11 });
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  SCENE HIERARCHY
+// ══════════════════════════════════════════════════════════════════
+const G = {
+  map:           new THREE.Group(),
+  ground:        new THREE.Group(),
+  roads:         new THREE.Group(),
+  sidewalks:     new THREE.Group(),
+  curbs:         new THREE.Group(),
+  grassSlots:    new THREE.Group(),
+  buildingSlots: new THREE.Group(),
+  steps:         new THREE.Group(),
+  grid:          new THREE.Group(),
+  // OBJECTS (empty — stage 2+)
+  objects:       new THREE.Group(),
+  buildings:     new THREE.Group(),
+  vegetation:    new THREE.Group(),
+  characters:    new THREE.Group(),
+  props:         new THREE.Group(),
+  // Labels
+  labels:        new THREE.Group(),
+};
+
+G.map.name = 'MAP';
+G.objects.name = 'OBJECTS';
+G.labels.name = 'LABELS';
+
+G.map.add(G.ground, G.roads, G.sidewalks, G.curbs, G.grassSlots, G.buildingSlots, G.steps, G.grid);
+G.objects.add(G.buildings, G.vegetation, G.characters, G.props);
+
+scene.add(G.map, G.objects, G.labels);
+
+// ══════════════════════════════════════════════════════════════════
+//  LIGHTING
+// ══════════════════════════════════════════════════════════════════
+function setupLighting() {
+  const ambient = new THREE.AmbientLight(0xd0d8e8, 0.62);
+  scene.add(ambient);
+
+  const sun = new THREE.DirectionalLight(0xfff8e8, 1.45);
+  sun.position.set(-50, 90, 50);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left:-100, right:100, top:100, bottom:-100, near:0.1, far:350 });
+  sun.shadow.bias = -0.0006;
+  sun.shadow.radius = 2.5;
+  scene.add(sun);
+
+  const fill = new THREE.DirectionalLight(0xc8d8f0, 0.28);
+  fill.position.set(60, 45, -40);
+  scene.add(fill);
+
+  const hemi = new THREE.HemisphereLight(0xaec4d8, 0x8090a0, 0.38);
+  scene.add(hemi);
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  PRIMITIVE FACTORIES
+// ══════════════════════════════════════════════════════════════════
+
+/** Box with pivot at bottom-center */
+function box(w, h, d, mat) {
+  const geo = new THREE.BoxGeometry(w, h, d);
+  geo.translate(0, h / 2, 0);
+  const m = new THREE.Mesh(geo, mat);
+  m.castShadow = true;
+  m.receiveShadow = true;
+  return m;
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  MAP ELEMENT FACTORIES
+// ══════════════════════════════════════════════════════════════════
+
+function createRoad(x, z, w, d, opts = {}) {
+  const g = new THREE.Group();
+  g.name = opts.name || `road_${x}_${z}`;
+  const slab = box(w, 0.04, d, M.road);
+  slab.position.y = LAYER_H.road;
+  g.add(slab);
+  if (opts.centerLine) {
+    const lw = opts.horizontal ? w * 0.98 : 0.18;
+    const ld = opts.horizontal ? 0.18 : d * 0.98;
+    const line = box(lw, 0.005, ld, M.roadMark);
+    line.position.y = LAYER_H.road + 0.042;
+    g.add(line);
+  }
+  g.position.set(x, 0, z);
+  return g;
+}
+
+function createSidewalk(x, z, w, d, opts = {}) {
+  const g = new THREE.Group();
+  g.name = opts.name || `sidewalk_${x}_${z}`;
+  const mat = opts.alt ? M.sidewalkAlt : M.sidewalk;
+  const slab = box(w, LAYER_H.sidewalk, d, mat);
+  g.add(slab);
+  g.position.set(x, 0, z);
+  return g;
+}
+
+function createCurb(x, z, w, d, opts = {}) {
+  const g = new THREE.Group();
+  g.name = opts.name || `curb_${x}_${z}`;
+  const c = box(w, LAYER_H.curb, d, M.curb);
+  g.add(c);
+  g.position.set(x, 0, z);
+  return g;
+}
+
+function createGrassSlot(x, z, w, d, opts = {}) {
+  const g = new THREE.Group();
+  g.name = opts.name || `grass_slot_${x}_${z}`;
+  g.userData = { type: 'grassSlot', w, d };
+
+  const soil = box(w, LAYER_H.grassSlot, d, M.grassSlot);
+  g.add(soil);
+
+  // border frame
+  const bw = 0.14, bh = 0.09;
+  [
+    { pos:[0,0,-d/2-bw/2], size:[w+bw*2, bh, bw] },
+    { pos:[0,0, d/2+bw/2], size:[w+bw*2, bh, bw] },
+    { pos:[-w/2-bw/2,0,0], size:[bw, bh, d] },
+    { pos:[ w/2+bw/2,0,0], size:[bw, bh, d] },
+  ].forEach(e => {
+    const b = box(...e.size, M.grassBorder);
+    b.position.set(...e.pos);
+    g.add(b);
+  });
+
+  g.position.set(x, 0, z);
+  return g;
+}
+
+function createBuildingSlot(x, z, w, d, opts = {}) {
+  const g = new THREE.Group();
+  g.name = opts.name || `building_slot_${x}_${z}`;
+  g.userData = { type: 'buildingSlot', w, d, ...opts };
+
+  const platform = box(w, LAYER_H.buildingBase, d, M.buildingSlot);
+  g.add(platform);
+
+  const bw = 0.22, fh = LAYER_H.buildingBase + 0.05;
+  [
+    { pos:[0,0,-d/2-bw/2], size:[w+bw*2, fh, bw] },
+    { pos:[0,0, d/2+bw/2], size:[w+bw*2, fh, bw] },
+    { pos:[-w/2-bw/2,0,0], size:[bw, fh, d] },
+    { pos:[ w/2+bw/2,0,0], size:[bw, fh, d] },
+  ].forEach(e => {
+    const b = box(...e.size, M.buildingBorder);
+    b.position.set(...e.pos);
+    g.add(b);
+  });
+
+  g.position.set(x, 0, z);
+  return g;
+}
+
+function createStep(x, z, w, d, height = 0.08, opts = {}) {
+  const s = box(w, height, d, M.step);
+  s.name = opts.name || `step_${x}_${z}`;
+  s.position.set(x, 0, z);
+  return s;
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  GRID
+// ══════════════════════════════════════════════════════════════════
+function buildGrid() {
+  const g = new THREE.Group();
+  g.name = 'Grid';
+  const y = 0.001;
+  const hW = MAP_W / 2, hD = MAP_D / 2;
+
+  for (let i = 0; i <= MAP_W; i++) {
+    const x = i - hW;
+    const mat = i % 10 === 0 ? M.gridMajor : M.gridMinor;
+    const pts = [new THREE.Vector3(x,y,-hD), new THREE.Vector3(x,y,hD)];
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
+  }
+  for (let i = 0; i <= MAP_D; i++) {
+    const z = i - hD;
+    const mat = i % 10 === 0 ? M.gridMajor : M.gridMinor;
+    const pts = [new THREE.Vector3(-hW,y,z), new THREE.Vector3(hW,y,z)];
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
+  }
+  return g;
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  LABELS (canvas sprites)
+// ══════════════════════════════════════════════════════════════════
+function createLabel(text, color = '#8fb3e8') {
+  const cv = document.createElement('canvas');
+  cv.width = 256; cv.height = 72;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = 'rgba(12,18,35,0.88)';
+  ctx.beginPath(); ctx.roundRect(3,3,250,66,8); ctx.fill();
+  ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(3,3,250,66,8); ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.font = 'bold 20px system-ui, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, 128, 36);
+  const tex = new THREE.CanvasTexture(cv);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  sp.scale.set(8, 2.3, 1);
+  return sp;
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  BUILD MAP
+// ══════════════════════════════════════════════════════════════════
+function buildMap() {
+  initMaterials();
+
+  // ── 1. SUELO BASE ─────────────────────────────────────────────
+  const baseGround = box(MAP_W, 0.1, MAP_D, M.ground);
+  G.ground.add(baseGround);
+
+  // Variaciones zonales de tonalidad
+  const leftZone = box(50, 0.05, 62, M.groundAlt);
+  leftZone.position.set(-35, 0.02, 5);
+  G.ground.add(leftZone);
+
+  const rearZone = box(60, 0.05, 50, M.groundAlt);
+  rearZone.position.set(28, 0.02, -14);
+  G.ground.add(rearZone);
+
+  // ── 2. CALLES INTERNAS ────────────────────────────────────────
+  // Calle frontal principal (E-O frente al edificio)
+  G.roads.add(createRoad(  0, 28, MAP_W, 10, { name:'road_01_frontal',    centerLine:true, horizontal:true  }));
+  // Calle lateral izquierda (N-S lado oeste)
+  G.roads.add(createRoad(-48,  0,    10, 72, { name:'road_02_lat_izq',    centerLine:true, horizontal:false }));
+  // Calle lateral derecha / acceso
+  G.roads.add(createRoad( 48, -5,     8, 58, { name:'road_03_lat_der',    centerLine:false }));
+  // Calle interna de patio
+  G.roads.add(createRoad(-20, 10,     8, 38, { name:'road_04_acceso_int' }));
+  // Calle trasera (fondo)
+  G.roads.add(createRoad(  5,-33,   100,  8, { name:'road_05_trasera',    centerLine:true, horizontal:true  }));
+  // Circulación junto al edificio (der)
+  G.roads.add(createRoad( 40,  0,     6, 50, { name:'road_06_circ_edificio' }));
+
+  // ── 3. VEREDAS ELEVADAS ───────────────────────────────────────
+  G.sidewalks.add(createSidewalk( 10, 18, 70,  5, { name:'sw_01_frente' }));
+  G.sidewalks.add(createSidewalk(-36,  8,  4, 50, { name:'sw_02_lat_izq', alt:true }));
+  G.sidewalks.add(createSidewalk( 32,  5,  4, 45, { name:'sw_03_lat_der' }));
+  G.sidewalks.add(createSidewalk(  5,-27, 90,  4, { name:'sw_04_trasera', alt:true }));
+  G.sidewalks.add(createSidewalk(-53,  5,  4, 62, { name:'sw_05_perim_izq' }));
+  G.sidewalks.add(createSidewalk(  0, 38, 96,3.5, { name:'sw_06_perim_norte' }));
+
+  // ── 4. CORDONES ───────────────────────────────────────────────
+  G.curbs.add(createCurb( 10, 23.2, 70, 0.35, { name:'curb_01_frente_N' }));
+  G.curbs.add(createCurb( 10, 15.4, 70, 0.35, { name:'curb_02_frente_S' }));
+  G.curbs.add(createCurb(-32,  8, 0.35, 50,   { name:'curb_03_latizq_E' }));
+  G.curbs.add(createCurb(-40,  8, 0.35, 50,   { name:'curb_04_latizq_O' }));
+  G.curbs.add(createCurb(  5,-29.2, 100, 0.35,{ name:'curb_05_trasera_N' }));
+  G.curbs.add(createCurb(  5,-36.8, 100, 0.35,{ name:'curb_06_trasera_S' }));
+  G.curbs.add(createCurb( 34.3, 5, 0.35, 45,  { name:'curb_07_latder_E' }));
+  G.curbs.add(createCurb( 29.7, 5, 0.35, 45,  { name:'curb_08_latder_O' }));
+  G.curbs.add(createCurb(  0, 39.8, 96, 0.35, { name:'curb_09_perim_N' }));
+
+  // ── 5. CANTEROS (GRASS SLOTS) ─────────────────────────────────
+  G.grassSlots.add(createGrassSlot( -5, 21, 30, 3.5, { name:'grass_01_central_frente' }));
+  G.grassSlots.add(createGrassSlot(-40, 10,  4,  35, { name:'grass_02_lat_izq_palmeras' }));
+  G.grassSlots.add(createGrassSlot(-28, 20,  8,   6, { name:'grass_03_patio_a' }));
+  G.grassSlots.add(createGrassSlot(-16, 20,  8,   6, { name:'grass_04_patio_b' }));
+  G.grassSlots.add(createGrassSlot(-50, 28, 12,  14, { name:'grass_05_noroeste' }));
+  G.grassSlots.add(createGrassSlot(  0,-15, 55,   7, { name:'grass_06_trasero_central' }));
+  G.grassSlots.add(createGrassSlot( 36, -8,  8,  28, { name:'grass_07_lat_der' }));
+  G.grassSlots.add(createGrassSlot( 52, 25, 10,  22, { name:'grass_08_noreste' }));
+  G.grassSlots.add(createGrassSlot(  0,-38, 84,   4, { name:'grass_09_perim_sur' }));
+  G.grassSlots.add(createGrassSlot( 22, 14, 14, 2.5, { name:'grass_10_acceso_E' }));
+  G.grassSlots.add(createGrassSlot( -4, 14, 14, 2.5, { name:'grass_11_acceso_C' }));
+
+  // ── 6. FOOTPRINTS DE EDIFICIOS ────────────────────────────────
+  G.buildingSlots.add(createBuildingSlot( 15, -3, 68, 25, { name:'building_01_principal' }));
+  G.buildingSlots.add(createBuildingSlot( 46,-18, 24, 14, { name:'building_02_ala_der' }));
+  G.buildingSlots.add(createBuildingSlot(-45,-15, 16, 20, { name:'building_03_pabellon' }));
+
+  // ── 7. ESCALONES / PLATAFORMAS ────────────────────────────────
+  G.steps.add(createStep( 10,  9.8, 22, 1.2, 0.05, { name:'step_01_acceso_peldano1' }));
+  G.steps.add(createStep( 10,  8.5, 19, 1.0, 0.04, { name:'step_02_acceso_peldano2' }));
+
+  // Plataforma de acceso principal
+  const acc = box(26, 0.06, 3.8, M.sidewalk);
+  acc.position.set(10, 0, 11);
+  acc.name = 'platform_acceso_principal';
+  G.steps.add(acc);
+
+  G.steps.add(createStep( 30,  8.0,  5, 1.0, 0.05, { name:'step_03_lat_der' }));
+  G.steps.add(createStep(-20,  6.0,  7, 1.5, 0.04, { name:'ramp_01_tramo1' }));
+  G.steps.add(createStep(-20,  4.5,  7, 1.5, 0.08, { name:'ramp_01_tramo2' }));
+
+  // ── 8. GRID ──────────────────────────────────────────────────
+  G.grid.add(buildGrid());
+
+  // ── 9. LABELS ────────────────────────────────────────────────
+  const labelDefs = [
+    { text:'Edificio Principal',  x: 15, y:3.5, z: -3, color:'#8fb3e8' },
+    { text:'Ala Derecha',         x: 46, y:3.5, z:-18, color:'#8fb3e8' },
+    { text:'Pabellón Izq.',       x:-45, y:3.5, z:-15, color:'#8fb3e8' },
+    { text:'Cantero Central',     x: -5, y:2.8, z: 21, color:'#7cb87c' },
+    { text:'Cantero Lateral',     x:-40, y:2.8, z: 10, color:'#7cb87c' },
+    { text:'Cantero Trasero',     x:  0, y:2.8, z:-15, color:'#7cb87c' },
+    { text:'Calle Frontal',       x:  0, y:2.2, z: 28, color:'#c0a060' },
+    { text:'Vereda Frente',       x: 10, y:2.8, z: 18, color:'#b0c0d8' },
+    { text:'Acceso Principal',    x: 10, y:2.2, z: 10, color:'#c0c0a0' },
+  ];
+  labelDefs.forEach(d => {
+    const lbl = createLabel(d.text, d.color);
+    lbl.position.set(d.x, d.y, d.z);
+    G.labels.add(lbl);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  UI EVENTS
+// ══════════════════════════════════════════════════════════════════
+let showGrid   = true;
+let showLabels = true;
+
+document.getElementById('btn-reset-cam').addEventListener('click', () => {
+  setIsoCam(); controls.target.set(0,0,0); controls.update();
+});
+document.getElementById('btn-toggle-grid').addEventListener('click', function() {
+  showGrid = !showGrid;
+  G.grid.visible = showGrid;
+  this.classList.toggle('active', showGrid);
+});
+document.getElementById('btn-toggle-grid').classList.add('active');
+
+document.getElementById('btn-toggle-labels').addEventListener('click', function() {
+  showLabels = !showLabels;
+  G.labels.visible = showLabels;
+  this.classList.toggle('active', showLabels);
+});
+document.getElementById('btn-toggle-labels').classList.add('active');
+
+document.getElementById('btn-top-view').addEventListener('click', function() {
+  camera.position.set(0, 160, 0.01);
+  camera.lookAt(0,0,0);
+  controls.target.set(0,0,0); controls.update();
+  document.getElementById('btn-iso-view').classList.remove('active');
+  this.classList.add('active');
+});
+document.getElementById('btn-iso-view').addEventListener('click', function() {
+  setIsoCam(); controls.target.set(0,0,0); controls.update();
+  document.getElementById('btn-top-view').classList.remove('active');
+  this.classList.add('active');
+});
+
+window.addEventListener('keydown', e => {
+  if (e.key === 'r' || e.key === 'R') {
+    setIsoCam(); controls.target.set(0,0,0); controls.update();
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════
+//  RESIZE
+// ══════════════════════════════════════════════════════════════════
+window.addEventListener('resize', () => {
+  aspect = container.clientWidth / container.clientHeight;
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  camera.left   = -CAM_SIZE * aspect;
+  camera.right  =  CAM_SIZE * aspect;
+  camera.top    =  CAM_SIZE;
+  camera.bottom = -CAM_SIZE;
+  camera.updateProjectionMatrix();
+});
+
+// ══════════════════════════════════════════════════════════════════
+//  INIT & LOOP
+// ══════════════════════════════════════════════════════════════════
+setupLighting();
+buildMap();
+
+(function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+})();
+
+// ══════════════════════════════════════════════════════════════════
+//  PUBLIC API — window.CAMPUS_MAP
+//  Expuesto para uso en Etapa 2+
+// ══════════════════════════════════════════════════════════════════
+window.CAMPUS_MAP = {
+  scene, camera, controls, renderer,
+  groups: G,
+  materials: M,
+  createRoad, createSidewalk, createCurb,
+  createGrassSlot, createBuildingSlot, createStep,
+
+  /**
+   * addBuilding(id, x, z, w, d, h, opts)
+   * Agrega un edificio 3D al grupo buildings.
+   */
+  addBuilding(id, x, z, w, d, h, opts = {}) {
+    const g = new THREE.Group();
+    g.name = id;
+    const mat = new THREE.MeshLambertMaterial({ color: opts.color || 0xe8e0d0 });
+    const body = box(w, h, d, mat);
+    g.add(body);
+    g.position.set(x, LAYER_H.buildingBase, z);
+    G.buildings.add(g);
+    return g;
+  },
+
+  /** addVegetation(id, x, z, opts) — Etapa 2 */
+  addVegetation(id, x, z, opts = {}) {
+    console.log(`[CAMPUS_MAP] addVegetation: ${id} @ (${x}, ${z})`, opts);
+  },
+
+  /** addCharacter(id, x, z, opts) — Etapa 3 */
+  addCharacter(id, x, z, opts = {}) {
+    console.log(`[CAMPUS_MAP] addCharacter: ${id} @ (${x}, ${z})`, opts);
+  },
+
+  /** addProp(id, x, z, opts) — Etapa 2 */
+  addProp(id, x, z, opts = {}) {
+    console.log(`[CAMPUS_MAP] addProp: ${id} @ (${x}, ${z})`, opts);
+  },
+
+  removeElement(name) {
+    scene.traverse(obj => { if (obj.name === name && obj.parent) obj.parent.remove(obj); });
+  },
+
+  getSlot(name) {
+    let found = null;
+    scene.traverse(obj => { if (obj.name === name) found = obj; });
+    return found;
+  }
+};
+
+console.log('%c UNLaM Campus 3D · Etapa 1 ✓ ', 'background:#3a5a8a;color:#fff;font-weight:bold;padding:4px 8px;border-radius:4px;');
+console.log('API disponible en: window.CAMPUS_MAP');
+console.log('Grupos:', Object.keys(G).join(', '));
+</script>
+</body>
+</html>
