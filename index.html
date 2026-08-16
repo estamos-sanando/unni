@@ -607,8 +607,35 @@ const ASSETS=[
 //  ISO GRID
 // ═══════════════════════════════════════════
 // Tile dimensions: TW=diamond width, TH=diamond half-height, TS=side depth
-const TW=134, TH=67, TS=20, COLS=16, ROWS=16;
-const OX=COLS*(TW/2)+100, OY=100+TS;
+const TW=134, TH=67, TS=20;
+
+// ── GROUND MAP (matches reference image exactly) ──────────────
+// ' '=no tile  'g'=grass  'c'=concrete/path
+const GROUND_MAP = [
+//  0    1    2    3    4    5    6    7    8
+  [' ', ' ', ' ', 'g', 'g', 'g', 'g', 'g', ' '],  // row 0 – gym area (top)
+  [' ', ' ', 'g', 'g', 'c', 'c', 'g', 'g', ' '],  // row 1 – gym/library
+  [' ', 'g', 'g', 'c', 'c', 'c', 'c', 'g', 'g'],  // row 2 – library left
+  ['g', 'g', 'c', 'c', 'c', 'c', 'c', 'g', 'g'],  // row 3 – main plaza
+  ['g', 'g', 'c', 'c', 'c', 'c', 'c', 'c', 'g'],  // row 4 – wide plaza
+  ['g', 'c', 'c', 'c', 'c', 'c', 'g', ' ', ' '],  // row 5 – lower plaza
+  ['c', 'c', 'c', 'c', 'g', ' ', ' ', ' ', ' '],  // row 6 – entry
+  [' ', 'c', 'g', ' ', ' ', ' ', ' ', ' ', ' '],  // row 7 – gate row
+];
+const GM_R = GROUND_MAP.length;   // 8
+const GM_C = GROUND_MAP[0].length; // 9
+
+// Use these as the effective grid dims for the editor
+const COLS = GM_C;
+const ROWS = GM_R;
+
+function getCell(r, c) {
+  if (r < 0 || r >= GM_R || c < 0 || c >= GM_C) return null;
+  const v = GROUND_MAP[r][c];
+  return v === ' ' ? null : v;
+}
+
+const OX = ROWS * (TW/2) + 140, OY = 120 + TS;
 
 function isoXY(c,r){ return { x:(c-r)*(TW/2)+OX, y:(c+r)*(TH/2)+OY }; }
 function screenToCell(sx,sy){
@@ -857,37 +884,212 @@ function getTile(type, variant) {
   return TILE_CACHE[key];
 }
 
-// ── RENDER GROUND TILES ──
+// ── RENDER GROUND – single canvas, exact GROUND_MAP shape ──────
+function drawBrickFace(ctx, pts, isLeft) {
+  // pts: array of 4 [x,y] corners (top-left, top-right, bot-right, bot-left)
+  const WALL_H = 14;
+  const [[ax,ay],[bx,by]] = isLeft
+    ? [[pts[3][0], pts[3][1]], [pts[2][0], pts[2][1]]] // left→bottom edge
+    : [[pts[2][0], pts[2][1]], [pts[1][0], pts[1][1]]]; // bottom→right edge
+
+  // four corners of brick face
+  const p0=[ax,ay], p1=[bx,by];
+  const p2=[bx,by+WALL_H], p3=[ax,ay+WALL_H];
+
+  // Fill
+  const grad = ctx.createLinearGradient(ax,ay,bx,by+WALL_H);
+  grad.addColorStop(0, isLeft ? '#b54020' : '#c04828');
+  grad.addColorStop(1, isLeft ? '#8a2e14' : '#9a3820');
+  ctx.beginPath();
+  ctx.moveTo(...p0); ctx.lineTo(...p1); ctx.lineTo(...p2); ctx.lineTo(...p3);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Brick pattern – horizontal courses
+  const W = Math.hypot(bx-ax, by-ay);
+  const dxU = (bx-ax)/W, dyU = (by-ay)/W;
+  const courses = 3;
+  for (let i=1; i<courses; i++) {
+    const t = i/courses;
+    const px0 = ax + (bx-ax)*0 , py0 = ay + t*WALL_H;
+    const px1 = bx             , py1 = by + t*WALL_H;
+    ctx.beginPath(); ctx.moveTo(p0[0]+(p3[0]-p0[0])*t, p0[1]+(p3[1]-p0[1])*t);
+    ctx.lineTo(p1[0]+(p2[0]-p1[0])*t, p1[1]+(p2[1]-p1[1])*t);
+    ctx.strokeStyle='rgba(0,0,0,.25)'; ctx.lineWidth=1; ctx.stroke();
+  }
+  // Vertical joints (staggered)
+  const segs = 4;
+  for (let i=1; i<segs; i++) {
+    const t = i/segs;
+    // alternate offset between courses
+    [0,1,2].forEach(ci => {
+      const ct = ci/courses, cn = (ci+1)/courses;
+      const offset = (ci%2===0) ? t : (t + 0.5/segs) % 1;
+      const lx0 = ax + (bx-ax)*offset, ly0 = ay + ct*WALL_H;
+      const lx1 = lx0, ly1 = ay + cn*WALL_H;
+      ctx.beginPath(); ctx.moveTo(lx0,ly0); ctx.lineTo(lx1,ly1);
+      ctx.strokeStyle='rgba(0,0,0,.18)'; ctx.lineWidth=0.8; ctx.stroke();
+    });
+  }
+  // Outline
+  ctx.beginPath();
+  ctx.moveTo(...p0); ctx.lineTo(...p1); ctx.lineTo(...p2); ctx.lineTo(...p3);
+  ctx.closePath();
+  ctx.strokeStyle='rgba(0,0,0,.4)'; ctx.lineWidth=1; ctx.stroke();
+}
+
+function drawGroundTileCtx(ctx, x, y, type, variant, scale=1) {
+  // Rebuild the tile drawing directly on ctx (scaled)
+  const tw = TW*scale, th = TH*scale, ts = TS*scale;
+  const cx2 = x;   // x is the left vertex of the diamond in screen space
+  // Diamond vertices in ctx space (x,y = top vertex of the diamond)
+  const top   = [x,          y         ];
+  const right = [x + tw/2,   y + th/2  ];
+  const bot   = [x,          y + th    ];
+  const left  = [x - tw/2,   y + th/2  ];
+  const botL  = [left[0],    left[1]+ts ];
+  const botR  = [right[0],   right[1]+ts];
+  const botB  = [bot[0],     bot[1]+ts  ];
+
+  if (type === 'grass') {
+    const cols = [['#52b84a','#5dc054','#48b040','#60c660'],['#4ab044','#58bc50','#44a83e','#5aba52'],
+                  ['#46a840','#52b04c','#3ea038','#58b84e'],['#4eb24a','#5cbc56','#46aa42','#62c45e']];
+    const gc = cols[variant%4];
+    const g0 = ctx.createLinearGradient(left[0],left[1],right[0],right[1]);
+    g0.addColorStop(0,gc[0]); g0.addColorStop(.4,gc[1]); g0.addColorStop(.7,gc[2]); g0.addColorStop(1,gc[3]);
+    ctx.beginPath(); ctx.moveTo(...top); ctx.lineTo(...right); ctx.lineTo(...bot); ctx.lineTo(...left); ctx.closePath();
+    ctx.fillStyle=g0; ctx.fill();
+    // Grass blades
+    ctx.save(); ctx.clip();
+    const rng=mulberry32(variant*1234+99);
+    for(let i=0;i<50;i++){
+      const t=rng(),u=rng();
+      const gx=(t-u)*(tw/2)+x, gy=(t+u)*(th/2)+y;
+      const len=3+rng()*5, angle=-Math.PI/2+(rng()-.5)*.8;
+      ctx.strokeStyle=`rgba(30,100,20,${.2+rng()*.25})`; ctx.lineWidth=.8+rng();
+      ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx+Math.cos(angle)*len,gy+Math.sin(angle)*len); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.beginPath(); ctx.moveTo(...top); ctx.lineTo(...right); ctx.lineTo(...bot); ctx.lineTo(...left); ctx.closePath();
+    ctx.strokeStyle='rgba(30,90,20,.4)'; ctx.lineWidth=.8; ctx.stroke();
+    // Left side (brown soil)
+    ctx.beginPath(); ctx.moveTo(...left); ctx.lineTo(...bot); ctx.lineTo(...botB); ctx.lineTo(...botL); ctx.closePath();
+    const gl2=ctx.createLinearGradient(left[0],left[1],bot[0],bot[1]+ts);
+    gl2.addColorStop(0,'#7a4c1e'); gl2.addColorStop(.3,'#8a5828'); gl2.addColorStop(1,'#5a3810');
+    ctx.fillStyle=gl2; ctx.fill();
+    ctx.strokeStyle='rgba(30,15,5,.5)'; ctx.lineWidth=.8; ctx.stroke();
+    // Right side (lighter soil)
+    ctx.beginPath(); ctx.moveTo(...bot); ctx.lineTo(...right); ctx.lineTo(...botR); ctx.lineTo(...botB); ctx.closePath();
+    const gr2=ctx.createLinearGradient(bot[0],bot[1],right[0],bot[1]+ts);
+    gr2.addColorStop(0,'#8a5828'); gr2.addColorStop(1,'#6a4018');
+    ctx.fillStyle=gr2; ctx.fill();
+    ctx.strokeStyle='rgba(30,15,5,.5)'; ctx.lineWidth=.8; ctx.stroke();
+  } else {
+    const cols=[['#a0a0a0','#969696','#aaaaaa'],['#a8a4a0','#9e9a96','#b0acaa'],
+                ['#969290','#8e8a88','#9e9a98'],['#9c9896','#929090','#a4a09e']];
+    const pc=cols[variant%4];
+    const g0=ctx.createLinearGradient(left[0],left[1],right[0],right[1]);
+    g0.addColorStop(0,pc[0]); g0.addColorStop(.5,pc[1]); g0.addColorStop(1,pc[2]);
+    ctx.beginPath(); ctx.moveTo(...top); ctx.lineTo(...right); ctx.lineTo(...bot); ctx.lineTo(...left); ctx.closePath();
+    ctx.fillStyle=g0; ctx.fill();
+    // Cracks
+    ctx.save(); ctx.clip();
+    const rng=mulberry32(variant*8321+42);
+    for(let i=0;i<5;i++){
+      const t=.1+rng()*.8,u=.1+rng()*.8;
+      const gx=(t-u)*(tw/2)+x, gy=(t+u)*(th/2)+y;
+      const len=8+rng()*22, angle=rng()*Math.PI;
+      ctx.strokeStyle=`rgba(60,60,60,${.07+rng()*.1})`; ctx.lineWidth=.8+rng();
+      ctx.beginPath(); ctx.moveTo(gx,gy);
+      ctx.quadraticCurveTo(gx+Math.cos(angle+.4)*len*.5,gy+Math.sin(angle+.4)*len*.4,
+                           gx+Math.cos(angle)*len,gy+Math.sin(angle)*len); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.beginPath(); ctx.moveTo(...top); ctx.lineTo(...right); ctx.lineTo(...bot); ctx.lineTo(...left); ctx.closePath();
+    ctx.strokeStyle='rgba(60,60,60,.35)'; ctx.lineWidth=.8; ctx.stroke();
+    // Left side
+    ctx.beginPath(); ctx.moveTo(...left); ctx.lineTo(...bot); ctx.lineTo(...botB); ctx.lineTo(...botL); ctx.closePath();
+    const gl3=ctx.createLinearGradient(left[0],left[1],bot[0],bot[1]+ts);
+    gl3.addColorStop(0,'#7a7a7a'); gl3.addColorStop(1,'#545454');
+    ctx.fillStyle=gl3; ctx.fill();
+    ctx.strokeStyle='rgba(30,30,30,.4)'; ctx.lineWidth=.8; ctx.stroke();
+    // Right side
+    ctx.beginPath(); ctx.moveTo(...bot); ctx.lineTo(...right); ctx.lineTo(...botR); ctx.lineTo(...botB); ctx.closePath();
+    const gr3=ctx.createLinearGradient(bot[0],bot[1],right[0],bot[1]+ts);
+    gr3.addColorStop(0,'#686868'); gr3.addColorStop(1,'#484848');
+    ctx.fillStyle=gr3; ctx.fill();
+    ctx.strokeStyle='rgba(30,30,30,.4)'; ctx.lineWidth=.8; ctx.stroke();
+  }
+
+  return { top, right, bot, left, botL, botR, botB };
+}
+
 function renderGround() {
-  // Remove old ground layer if any
   document.querySelectorAll('.ground-tile').forEach(e => e.remove());
 
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      const { x, y } = isoXY(c, r);
-      const img = document.createElement('img');
-      img.className = 'ground-tile tile';
+  // Canvas size: enough to fit the whole ground map
+  const PAD = 60;
+  const cvW = (GM_C + GM_R) * TW/2 + PAD*2 + 20;
+  const cvH = (GM_C + GM_R) * TH/2 + TS + PAD*2 + 30;
+  const S = 2; // draw at 2× for sharpness
 
-      // Determine tile type based on position (path in center band)
-      const isPath = (c >= 3 && c <= 12 && r >= 3 && r <= 12);
-      const type = isPath ? 'path' : 'grass';
-      const variant = (c * 3 + r * 7) % 4;
+  const cv = document.createElement('canvas');
+  cv.width = cvW*S; cv.height = cvH*S;
+  const ctx = cv.getContext('2d');
+  ctx.scale(S, S);
 
-      img.src = getTile(type, variant);
-      const z = (c + r) * 2;
-      img.style.cssText = `
-        left:${x - TW}px;
-        top:${y - TS}px;
-        width:${TW * 2}px;
-        height:${(TH + TS + 4) * 2}px;
-        z-index:${z};
-        position:absolute;
-        image-rendering:pixelated;
-        pointer-events:none;
-      `;
-      scene.appendChild(img);
+  // Canvas-local origin (where grid(0,0) maps to inside the canvas)
+  const lOX = GM_R*(TW/2) + PAD;
+  const lOY = PAD + TS;
+
+  function lIso(c,r){ return { x:(c-r)*(TW/2)+lOX, y:(c+r)*(TH/2)+lOY }; }
+
+  // Sort: paint back→front (lower c+r first)
+  const cells=[];
+  for(let r=0;r<GM_R;r++) for(let c=0;c<GM_C;c++)
+    if(GROUND_MAP[r][c]!==' ') cells.push([c,r]);
+  cells.sort((a,b)=>(a[0]+a[1])-(b[0]+b[1]));
+
+  for(const [c,r] of cells){
+    const type = GROUND_MAP[r][c]==='g' ? 'grass' : 'path';
+    const variant = (c*3+r*7)%4;
+    const {x,y} = lIso(c,r);
+    // x,y = top vertex of the diamond
+    const verts = drawGroundTileCtx(ctx, x, y, type, variant);
+
+    // Brick walls: only on grass tiles, when neighbour is concrete or empty
+    if(type==='grass'){
+      // South-east face (left-front in iso view) → check cell (r+1, c)
+      const below = getCell(r+1,c);
+      if(below !== 'g'){
+        drawBrickFace(ctx, [verts.left,verts.bot,verts.botB,verts.botL], true);
+      }
+      // South-west face (right-front in iso view) → check cell (r, c+1)
+      const right2 = getCell(r,c+1);
+      if(right2 !== 'g'){
+        drawBrickFace(ctx, [verts.bot,verts.right,verts.botR,verts.botB], false);
+      }
     }
   }
+
+  // Place canvas image in the scene at the correct offset
+  const sceneOrigin = isoXY(0,0); // scene-space top vertex of tile (0,0)
+  const img = document.createElement('img');
+  img.className = 'ground-tile';
+  img.src = cv.toDataURL('image/png');
+  img.style.cssText = `
+    position:absolute;
+    left:${sceneOrigin.x - lOX}px;
+    top:${sceneOrigin.y - lOY}px;
+    width:${cvW}px;
+    height:${cvH}px;
+    z-index:0;
+    image-rendering:pixelated;
+    image-rendering:crisp-edges;
+    pointer-events:none;
+  `;
+  scene.appendChild(img);
 }
 
 // ═══════════════════════════════════════════
@@ -908,8 +1110,8 @@ const gridSvg=document.getElementById('grid-svg');
 const vp=document.getElementById('vp');
 const cellHi=document.getElementById('cell-hi');
 
-const spxW=(COLS+ROWS)*(TW/2)+300;
-const spxH=(COLS+ROWS)*(TH/2)+300+TS*2;
+const spxW=(GM_C+GM_R)*(TW/2)+400;
+const spxH=(GM_C+GM_R)*(TH/2)+400+TS*2;
 scene.style.width=spxW+'px';
 scene.style.height=spxH+'px';
 cellHi.style.width=TW+'px';
