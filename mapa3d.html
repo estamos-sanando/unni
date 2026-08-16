@@ -1,188 +1,296 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>UNLaM – Mapa Isométrico 3D · Etapa 1</title>
-  <style>
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
-    :root {
-      --bg: #1a1f2e;
-      --panel-bg: rgba(15, 18, 28, 0.92);
-      --border: rgba(255,255,255,0.08);
-      --accent: #6c8ebf;
-      --accent-hi: #8fb3e8;
-      --text: #cdd5e0;
-      --text-dim: #6b7a8d;
-      --font: system-ui, sans-serif;
-    }
-
-    html, body {
-      width: 100%; height: 100%; overflow: hidden;
-      background: var(--bg);
-      font-family: var(--font);
-      color: var(--text);
-    }
-
-    #canvas-container {
-      position: absolute; inset: 0;
-    }
-    canvas { display: block; width: 100% !important; height: 100% !important; }
-
-    #topbar {
-      position: absolute; top: 0; left: 0; right: 0;
-      height: 48px;
-      background: var(--panel-bg);
-      border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(12px);
-      display: flex; align-items: center; gap: 12px; padding: 0 16px;
-      z-index: 100;
-    }
-    .logo-dot {
-      width: 28px; height: 28px; border-radius: 8px;
-      background: linear-gradient(135deg, #3a5a8a, #5b82b5);
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 800; font-size: 11px; color: #fff;
-      flex-shrink: 0;
-    }
-    .tb-title { font-size: 13px; font-weight: 600; color: #fff; }
-    .tb-sub { font-size: 10px; color: var(--text-dim); }
-    .tb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
-    .stage-badge {
-      background: rgba(108,142,191,0.15); border: 1px solid rgba(108,142,191,0.3);
-      color: var(--accent-hi); border-radius: 20px; padding: 3px 10px;
-      font-size: 10px; font-weight: 600; letter-spacing: 0.05em;
-    }
-    .tb-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-    .tb-btn {
-      background: rgba(255,255,255,0.06); border: 1px solid var(--border);
-      color: var(--text); border-radius: 6px; padding: 5px 10px;
-      font-size: 11px; cursor: pointer; font-family: var(--font);
-      display: flex; align-items: center; gap: 5px;
-      transition: background 0.15s, border-color 0.15s;
-    }
-    .tb-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); }
-    .tb-btn.active { background: rgba(108,142,191,0.2); border-color: var(--accent); color: var(--accent-hi); }
-
-    #legend {
-      position: absolute; bottom: 20px; right: 20px;
-      background: var(--panel-bg); border: 1px solid var(--border);
-      border-radius: 12px; padding: 14px 16px;
-      backdrop-filter: blur(12px);
-      min-width: 180px; z-index: 100;
-    }
-    .legend-title {
-      font-size: 9px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 10px;
-    }
-    .legend-item {
-      display: flex; align-items: center; gap: 9px;
-      font-size: 11px; color: var(--text); margin-bottom: 7px;
-    }
-    .legend-item:last-child { margin-bottom: 0; }
-    .legend-swatch {
-      width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
-      border: 1px solid rgba(255,255,255,0.1);
-    }
-
-    #info-panel {
-      position: absolute; top: 60px; left: 16px;
-      background: var(--panel-bg); border: 1px solid var(--border);
-      border-radius: 10px; padding: 12px 14px;
-      backdrop-filter: blur(12px);
-      font-size: 11px; color: var(--text-dim);
-      z-index: 100; line-height: 1.7;
-      pointer-events: none;
-    }
-    #info-panel strong { color: var(--text); }
-
-    #controls-hint {
-      position: absolute; bottom: 20px; left: 20px;
-      background: var(--panel-bg); border: 1px solid var(--border);
-      border-radius: 10px; padding: 10px 14px;
-      backdrop-filter: blur(12px);
-      font-size: 10px; color: var(--text-dim);
-      z-index: 100; line-height: 1.8;
-    }
-    #controls-hint strong {
-      color: var(--text); display: block; margin-bottom: 3px;
-      font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em;
-    }
-
-    #grid-indicator {
-      position: absolute; top: 60px; right: 20px;
-      background: var(--panel-bg); border: 1px solid var(--border);
-      border-radius: 8px; padding: 6px 12px;
-      font-size: 10px; color: var(--text-dim);
-      backdrop-filter: blur(12px); z-index: 100;
-    }
-    #grid-indicator span { color: var(--accent-hi); font-weight: 700; }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>UNLaM · Editor 3D Campus</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#141820; --panel:#0d1018; --panel2:#10141e;
+  --border:rgba(255,255,255,.07); --border2:rgba(255,255,255,.12);
+  --accent:#5b82b5; --accent-hi:#8fb3e8; --accent-glow:rgba(91,130,181,.18);
+  --green:#4fa830; --green-hi:#7ecc55; --green-glow:rgba(79,168,48,.18);
+  --red:#c05038; --red-hi:#e8704a;
+  --text:#c8d4e0; --text-dim:#5a6880; --text-mid:#8a9aac;
+  --topbar:44px; --left:200px; --right:218px;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:system-ui,sans-serif;color:var(--text);}
+/* ── LAYOUT ── */
+#topbar{
+  position:fixed;top:0;left:0;right:0;height:var(--topbar);
+  background:var(--panel);border-bottom:1px solid var(--border2);
+  display:flex;align-items:center;gap:8px;padding:0 12px;z-index:500;
+}
+#main{position:fixed;top:var(--topbar);left:0;right:0;bottom:0;display:flex;}
+#panel-left{
+  width:var(--left);flex-shrink:0;background:var(--panel);
+  border-right:1px solid var(--border);display:flex;flex-direction:column;
+  overflow:hidden;z-index:300;
+}
+#canvas-wrap{flex:1;position:relative;overflow:hidden;}
+#panel-right{
+  width:0;flex-shrink:0;background:var(--panel2);
+  border-left:1px solid var(--border);overflow:hidden;
+  transition:width .2s ease;z-index:300;
+}
+#panel-right.open{width:var(--right);}
+/* ── TOP BAR ── */
+.logo{
+  width:26px;height:26px;border-radius:7px;flex-shrink:0;
+  background:linear-gradient(135deg,#3558a0,#5b82b5);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:11px;color:#fff;
+}
+.tb-brand{font-size:13px;font-weight:700;color:#fff;}
+.tb-sub{font-size:10px;color:var(--text-dim);}
+.tb-sep{width:1px;height:22px;background:var(--border2);margin:0 4px;flex-shrink:0;}
+/* Mode buttons */
+.mode-group{display:flex;gap:3px;background:rgba(0,0,0,.3);border-radius:8px;padding:3px;}
+.mode-btn{
+  background:transparent;border:none;color:var(--text-dim);
+  border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;
+  display:flex;align-items:center;gap:5px;font-family:inherit;
+  transition:all .15s;white-space:nowrap;
+}
+.mode-btn:hover{background:rgba(255,255,255,.08);color:var(--text);}
+.mode-btn.active{background:var(--accent);color:#fff;}
+.mode-btn.active.green{background:var(--green);}
+/* Tool buttons */
+.tool-group{display:flex;gap:3px;}
+.tool-btn{
+  background:rgba(255,255,255,.05);border:1px solid var(--border);
+  color:var(--text-dim);border-radius:6px;padding:4px 9px;
+  font-size:11px;cursor:pointer;font-family:inherit;
+  display:flex;align-items:center;gap:4px;transition:all .15s;
+}
+.tool-btn:hover{background:rgba(255,255,255,.1);color:var(--text);border-color:var(--border2);}
+.tool-btn.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent-hi);}
+.tool-btn.snap-on{background:rgba(79,168,48,.15);border-color:var(--green);color:var(--green-hi);}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:6px;}
+/* Shortcut badge */
+.kbd{
+  display:inline-block;background:rgba(0,0,0,.4);border:1px solid var(--border2);
+  border-radius:3px;padding:1px 4px;font-size:9px;color:var(--text-dim);
+  font-family:monospace;line-height:1.4;
+}
+/* ── LEFT PANEL ── */
+.pl-scroll{flex:1;overflow-y:auto;padding:8px 6px;}
+.pl-scroll::-webkit-scrollbar{width:3px;}
+.pl-scroll::-webkit-scrollbar-thumb{background:#2a3040;border-radius:2px;}
+.cat-hdr{
+  font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--text-dim);padding:8px 6px 5px;
+  display:flex;align-items:center;gap:6px;
+}
+.cat-hdr::after{content:'';flex:1;height:1px;background:var(--border);}
+.tile-btn{
+  width:100%;background:rgba(255,255,255,.03);border:1px solid var(--border);
+  border-radius:7px;padding:7px 8px;cursor:pointer;font-family:inherit;
+  display:flex;align-items:center;gap:8px;margin-bottom:3px;
+  transition:all .14s;text-align:left;
+}
+.tile-btn:hover{background:rgba(255,255,255,.07);border-color:var(--border2);}
+.tile-btn.active{background:var(--accent-glow);border-color:var(--accent);}
+.tile-btn.active.grass{background:var(--green-glow);border-color:var(--green);}
+.tile-swatch{width:28px;height:28px;border-radius:5px;flex-shrink:0;border:1px solid rgba(255,255,255,.08);}
+.tile-info{flex:1;}
+.tile-name{font-size:11px;font-weight:600;color:var(--text);display:block;}
+.tile-size{font-size:9px;color:var(--text-dim);}
+/* ── PROPERTIES PANEL ── */
+.pr-inner{padding:12px;display:flex;flex-direction:column;gap:10px;height:100%;overflow-y:auto;}
+.pr-inner::-webkit-scrollbar{width:3px;}
+.pr-inner::-webkit-scrollbar-thumb{background:#2a3040;border-radius:2px;}
+.pr-hdr{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-dim);padding-bottom:8px;border-bottom:1px solid var(--border);}
+.pr-name{font-size:12px;font-weight:600;color:var(--accent-hi);word-break:break-all;}
+.pr-type-badge{display:inline-block;font-size:9px;padding:2px 7px;border-radius:10px;margin-top:3px;}
+.pr-type-badge.concrete{background:rgba(200,192,178,.12);color:#c8c0b2;border:1px solid rgba(200,192,178,.2);}
+.pr-type-badge.road{background:rgba(168,160,152,.12);color:#a8a098;border:1px solid rgba(168,160,152,.2);}
+.pr-type-badge.sidewalk{background:rgba(212,204,192,.12);color:#d4ccc0;border:1px solid rgba(212,204,192,.2);}
+.pr-type-badge.grass{background:rgba(79,168,48,.12);color:var(--green-hi);border:1px solid rgba(79,168,48,.2);}
+.pr-type-badge.building{background:rgba(58,74,106,.3);color:var(--accent-hi);border:1px solid rgba(91,130,181,.2);}
+.pr-section{display:flex;flex-direction:column;gap:6px;}
+.pr-section-title{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);}
+.pr-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;}
+.pr-field{display:flex;flex-direction:column;gap:3px;}
+.pr-field label{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;}
+.pr-field input[type=number]{
+  background:rgba(0,0,0,.3);border:1px solid var(--border2);
+  color:var(--text);border-radius:5px;padding:5px 6px;
+  font-size:11px;font-family:inherit;width:100%;
+  transition:border-color .14s;
+}
+.pr-field input[type=number]:focus{outline:none;border-color:var(--accent);}
+.pr-divider{height:1px;background:var(--border);}
+.pr-btn{
+  width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);
+  color:var(--text);border-radius:6px;padding:7px;font-size:11px;
+  cursor:pointer;font-family:inherit;transition:all .14s;
+}
+.pr-btn:hover{background:rgba(255,255,255,.1);}
+.pr-btn.danger{border-color:rgba(192,80,56,.3);color:var(--red-hi);}
+.pr-btn.danger:hover{background:rgba(192,80,56,.12);}
+.pr-btn.success{border-color:rgba(79,168,48,.3);color:var(--green-hi);}
+.pr-btn.success:hover{background:rgba(79,168,48,.1);}
+/* ── OBJECT LIST ── */
+.obj-list{display:flex;flex-direction:column;gap:3px;max-height:200px;overflow-y:auto;}
+.obj-list::-webkit-scrollbar{width:3px;}
+.obj-list::-webkit-scrollbar-thumb{background:#2a3040;border-radius:2px;}
+.obj-item{
+  background:rgba(255,255,255,.03);border:1px solid var(--border);
+  border-radius:5px;padding:5px 7px;font-size:10px;cursor:pointer;
+  display:flex;align-items:center;justify-content:space-between;
+  transition:all .12s;
+}
+.obj-item:hover{border-color:var(--border2);}
+.obj-item.sel{border-color:var(--accent);background:var(--accent-glow);}
+.obj-del{font-size:14px;color:var(--text-dim);cursor:pointer;transition:color .12s;padding:0 2px;}
+.obj-del:hover{color:var(--red-hi);}
+/* ── CANVAS OVERLAYS ── */
+#mode-indicator{
+  position:absolute;bottom:16px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,.7);backdrop-filter:blur(8px);
+  border:1px solid var(--border2);border-radius:20px;
+  padding:6px 16px;font-size:11px;color:var(--text-mid);
+  pointer-events:none;z-index:10;white-space:nowrap;
+}
+#mode-indicator span{font-weight:700;}
+#coord-display{
+  position:absolute;bottom:16px;right:16px;
+  background:rgba(0,0,0,.65);backdrop-filter:blur(8px);
+  border:1px solid var(--border);border-radius:8px;
+  padding:6px 10px;font-size:10px;color:var(--text-dim);
+  pointer-events:none;z-index:10;font-family:monospace;line-height:1.6;
+}
+</style>
 </head>
 <body>
 
-<div id="canvas-container"></div>
-
+<!-- ═══════════════════ TOP BAR ═══════════════════ -->
 <div id="topbar">
-  <div class="logo-dot">U</div>
+  <div class="logo">U</div>
   <div>
-    <div class="tb-title">UNLaM · Campus Mapa 3D</div>
-    <div class="tb-sub">Mapa Isométrico Interactivo</div>
+    <div class="tb-brand">UNLaM · Editor 3D Campus</div>
+    <div class="tb-sub">Etapa 2 · Césped & Cemento</div>
   </div>
   <div class="tb-sep"></div>
-  <div class="stage-badge">ETAPA 1 · BASE TERRENO</div>
+
+  <div class="mode-group">
+    <button class="mode-btn" id="btn-select">
+      ↖ Seleccionar <span class="kbd">S</span>
+    </button>
+    <button class="mode-btn active green" id="btn-place">
+      + Colocar <span class="kbd">P</span>
+    </button>
+  </div>
+
+  <div class="tb-sep"></div>
+
+  <div class="tool-group">
+    <button class="tool-btn" id="btn-w" title="Mover (W)">⟷ Mover</button>
+    <button class="tool-btn" id="btn-e" title="Rotar (E)">↻ Rotar</button>
+    <button class="tool-btn" id="btn-r" title="Escalar (R)">⤡ Escalar</button>
+  </div>
+
+  <div class="tb-sep"></div>
+
+  <button class="tool-btn snap-on" id="btn-snap">⊞ Snap Grid</button>
+  <button class="tool-btn active" id="btn-grid">⊟ Grid</button>
+
   <div class="tb-right">
-    <button class="tb-btn" id="btn-reset-cam">⟳ Reset Cámara</button>
-    <button class="tb-btn" id="btn-toggle-grid">⊞ Grid</button>
-    <button class="tb-btn" id="btn-toggle-labels">◈ Labels</button>
-    <button class="tb-btn" id="btn-top-view">▲ Vista Top</button>
-    <button class="tb-btn active" id="btn-iso-view">◆ Isométrico</button>
+    <button class="tool-btn" id="btn-undo" title="Ctrl+Z">↩ Undo</button>
+    <button class="tool-btn" id="btn-clear" style="color:var(--red-hi)">🗑 Limpiar</button>
+    <button class="tool-btn success" id="btn-export">↓ Exportar JSON</button>
+    <div class="tb-sep"></div>
+    <button class="tool-btn" id="btn-iso">◆ Iso</button>
+    <button class="tool-btn" id="btn-top">▲ Top</button>
   </div>
 </div>
 
-<div id="info-panel">
-  <strong>Escala del mundo</strong><br/>
-  1 unidad = 1 metro<br/>
-  Mapa: ~120 × 80 m<br/>
-  <br/>
-  <strong>Jerarquía de escena</strong><br/>
-  MAP / Roads / Sidewalks<br/>
-  Curbs / GrassSlots / BuildingSlots
-</div>
+<!-- ═══════════════════ MAIN ═══════════════════ -->
+<div id="main">
 
-<div id="grid-indicator">
-  Grid: <span>1m × 1m</span> · 120×80 celdas
-</div>
+  <!-- LEFT PANEL -->
+  <aside id="panel-left">
+    <div class="pl-scroll" id="catalog-scroll"></div>
+  </aside>
 
-<div id="controls-hint">
-  <strong>Controles</strong>
-  🖱 Arrastrar · Rotar<br/>
-  🖱 Rueda · Zoom<br/>
-  🖱 Derecho · Pan<br/>
-  ⌨ R · Reset Cámara
-</div>
+  <!-- CANVAS -->
+  <div id="canvas-wrap">
+    <div id="mode-indicator">
+      Modo: <span id="mode-text">COLOCAR</span> — selecciona un tile del panel izquierdo
+    </div>
+    <div id="coord-display">
+      X: <span id="cx">0</span><br/>
+      Z: <span id="cz">0</span>
+    </div>
+  </div>
 
-<div id="legend">
-  <div class="legend-title">Referencias del Mapa</div>
-  <div class="legend-item">
-    <div class="legend-swatch" style="background:#c8c0b2;"></div>Superficie cemento
-  </div>
-  <div class="legend-item">
-    <div class="legend-swatch" style="background:#a8a098;"></div>Calles internas
-  </div>
-  <div class="legend-item">
-    <div class="legend-swatch" style="background:#d4ccc0;"></div>Veredas elevadas
-  </div>
-  <div class="legend-item">
-    <div class="legend-swatch" style="background:#88827a;"></div>Cordones / bordes
-  </div>
-  <div class="legend-item">
-    <div class="legend-swatch" style="background:#4a5c3a; border-color:rgba(100,180,60,0.3);"></div>Canteros (césped futuro)
-  </div>
-  <div class="legend-item">
-    <div class="legend-swatch" style="background:#3a4a6a; border-color:rgba(80,120,200,0.3);"></div>Footprint Edificio
-  </div>
+  <!-- RIGHT PANEL (Properties) -->
+  <aside id="panel-right">
+    <div class="pr-inner">
+      <div class="pr-hdr">Propiedades</div>
+      <div id="pr-name" class="pr-name">–</div>
+      <div id="pr-type" class="pr-type-badge">–</div>
+
+      <div class="pr-divider"></div>
+
+      <div class="pr-section">
+        <div class="pr-section-title">Posición</div>
+        <div class="pr-row">
+          <div class="pr-field">
+            <label>X</label>
+            <input type="number" id="pr-px" step="0.5" value="0"/>
+          </div>
+          <div class="pr-field">
+            <label>Y</label>
+            <input type="number" id="pr-py" step="0.1" value="0"/>
+          </div>
+          <div class="pr-field">
+            <label>Z</label>
+            <input type="number" id="pr-pz" step="0.5" value="0"/>
+          </div>
+        </div>
+      </div>
+
+      <div class="pr-section">
+        <div class="pr-section-title">Rotación Y (°)</div>
+        <div class="pr-row">
+          <div class="pr-field" style="grid-column:1/-1">
+            <input type="number" id="pr-ry" step="15" value="0"/>
+          </div>
+        </div>
+      </div>
+
+      <div class="pr-section">
+        <div class="pr-section-title">Escala</div>
+        <div class="pr-row">
+          <div class="pr-field">
+            <label>X</label>
+            <input type="number" id="pr-sx" step="0.1" min="0.1" value="1"/>
+          </div>
+          <div class="pr-field">
+            <label>Y</label>
+            <input type="number" id="pr-sy" step="0.1" min="0.1" value="1"/>
+          </div>
+          <div class="pr-field">
+            <label>Z</label>
+            <input type="number" id="pr-sz" step="0.1" min="0.1" value="1"/>
+          </div>
+        </div>
+      </div>
+
+      <div class="pr-divider"></div>
+
+      <button class="pr-btn success" id="pr-dup">⧉ Duplicar</button>
+      <button class="pr-btn danger" id="pr-del">🗑 Eliminar</button>
+
+      <div class="pr-divider"></div>
+      <div class="pr-section-title">Objetos en escena</div>
+      <div class="obj-list" id="obj-list"></div>
+    </div>
+  </aside>
+
 </div>
 
 <script type="importmap">
@@ -196,547 +304,876 @@
 
 <script type="module">
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { OrbitControls }     from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
 
-// ══════════════════════════════════════════════════════════════════
-//  CONSTANTS
-//  Escala: 1 unidad THREE = 1 metro real
-// ══════════════════════════════════════════════════════════════════
-const MAP_W = 120;
-const MAP_D = 80;
+// ══════════════════════════════════════════════════════
+//  TILE CATALOG
+// ══════════════════════════════════════════════════════
+const CATALOG = [
+  {
+    cat:'Cemento', swatch:'#c8c0b2', icon:'⬜', isGrass:false,
+    tiles:[
+      { id:'ct_1x1',  label:'Losa 1×1',  desc:'1×1m',  w:1,  d:1,  type:'concrete' },
+      { id:'ct_2x2',  label:'Losa 2×2',  desc:'2×2m',  w:2,  d:2,  type:'concrete' },
+      { id:'ct_4x4',  label:'Losa 4×4',  desc:'4×4m',  w:4,  d:4,  type:'concrete' },
+      { id:'ct_8x4',  label:'Losa 8×4',  desc:'8×4m',  w:8,  d:4,  type:'concrete' },
+      { id:'ct_8x8',  label:'Losa 8×8',  desc:'8×8m',  w:8,  d:8,  type:'concrete' },
+      { id:'ct_16x8', label:'Losa 16×8', desc:'16×8m', w:16, d:8,  type:'concrete' },
+    ]
+  },
+  {
+    cat:'Caminos', swatch:'#a8a098', icon:'🛣', isGrass:false,
+    tiles:[
+      { id:'rd_h', label:'Calle Horiz.', desc:'20×7m', w:20, d:7, type:'road' },
+      { id:'rd_v', label:'Calle Vert.',  desc:'7×20m', w:7, d:20, type:'road' },
+      { id:'rd_s', label:'Calle cuad.',  desc:'8×8m',  w:8, d:8,  type:'road' },
+    ]
+  },
+  {
+    cat:'Veredas', swatch:'#d4ccc0', icon:'🚶', isGrass:false,
+    tiles:[
+      { id:'sw_h', label:'Vereda H', desc:'16×3m', w:16, d:3,  type:'sidewalk' },
+      { id:'sw_v', label:'Vereda V', desc:'3×16m', w:3,  d:16, type:'sidewalk' },
+      { id:'sw_s', label:'Vereda sq',desc:'4×4m',  w:4,  d:4,  type:'sidewalk' },
+    ]
+  },
+  {
+    cat:'Césped 3D', swatch:'#4a8c3a', icon:'🌿', isGrass:true,
+    tiles:[
+      { id:'gr_2x2', label:'Parche 2×2',  desc:'2×2m', w:2, d:2,  type:'grass' },
+      { id:'gr_4x4', label:'Parche 4×4',  desc:'4×4m', w:4, d:4,  type:'grass' },
+      { id:'gr_8x4', label:'Parche 8×4',  desc:'8×4m', w:8, d:4,  type:'grass' },
+      { id:'gr_2x8', label:'Cantero 2×8', desc:'2×8m', w:2, d:8,  type:'grass' },
+      { id:'gr_4x8', label:'Cantero 4×8', desc:'4×8m', w:4, d:8,  type:'grass' },
+      { id:'gr_1x1', label:'Pasto 1×1',   desc:'1×1m', w:1, d:1,  type:'grass' },
+    ]
+  },
+  {
+    cat:'Edificios', swatch:'#3a4a6a', icon:'🏗', isGrass:false,
+    tiles:[
+      { id:'bs_s', label:'Footprint S', desc:'16×12m', w:16, d:12, type:'building' },
+      { id:'bs_m', label:'Footprint M', desc:'24×16m', w:24, d:16, type:'building' },
+      { id:'bs_l', label:'Footprint L', desc:'32×20m', w:32, d:20, type:'building' },
+      { id:'bs_xl',label:'Footprint XL',desc:'48×24m', w:48, d:24, type:'building' },
+    ]
+  },
+];
 
-const LAYER_H = {
-  ground:       0.00,
-  road:         0.02,
-  sidewalk:     0.15,
-  curb:         0.12,
-  grassSlot:    0.04,
-  buildingBase: 0.08
-};
-
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 //  RENDERER
-// ══════════════════════════════════════════════════════════════════
-const container = document.getElementById('canvas-container');
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(container.clientWidth, container.clientHeight);
+// ══════════════════════════════════════════════════════
+const wrap    = document.getElementById('canvas-wrap');
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(wrap.clientWidth, wrap.clientHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace  = THREE.SRGBColorSpace;
+renderer.toneMapping       = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
-container.appendChild(renderer.domElement);
+wrap.appendChild(renderer.domElement);
 
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 //  SCENE
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x18202e);
-scene.fog = new THREE.Fog(0x18202e, 160, 300);
+scene.background = new THREE.Color(0x141820);
+scene.fog = new THREE.Fog(0x141820, 200, 400);
 
-// ══════════════════════════════════════════════════════════════════
-//  CAMERA (Orthographic — True Isometric)
-// ══════════════════════════════════════════════════════════════════
-const CAM_SIZE = 58;
-let aspect = container.clientWidth / container.clientHeight;
+// ══════════════════════════════════════════════════════
+//  CAMERA (Orthographic — True Isometric 35.26°)
+// ══════════════════════════════════════════════════════
+const CAM_SIZE = 55;
+let asp = wrap.clientWidth / wrap.clientHeight;
 const camera = new THREE.OrthographicCamera(
-  -CAM_SIZE * aspect,  CAM_SIZE * aspect,
-   CAM_SIZE,          -CAM_SIZE,
-  -500, 1000
+  -CAM_SIZE*asp, CAM_SIZE*asp, CAM_SIZE, -CAM_SIZE, -500, 1000
 );
 
-function setIsoCam() {
-  const dist = 130;
-  const phi  = Math.atan(1 / Math.sqrt(2)); // ~35.26° true iso
-  const theta = Math.PI / 4;                // 45°
+function setIsoCam(tx=0,ty=0,tz=0){
+  const dist=130, phi=Math.atan(1/Math.sqrt(2)), theta=Math.PI/4;
   camera.position.set(
-    dist * Math.cos(phi) * Math.sin(theta),
-    dist * Math.sin(phi),
-    dist * Math.cos(phi) * Math.cos(theta)
+    tx + dist*Math.cos(phi)*Math.sin(theta),
+    ty + dist*Math.sin(phi),
+    tz + dist*Math.cos(phi)*Math.cos(theta)
   );
-  camera.lookAt(0, 0, 0);
+  camera.lookAt(tx,ty,tz);
   camera.updateProjectionMatrix();
 }
 setIsoCam();
 
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 //  ORBIT CONTROLS
-// ══════════════════════════════════════════════════════════════════
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.06;
-controls.screenSpacePanning = true;
-controls.minZoom = 0.25;
-controls.maxZoom = 5;
-controls.maxPolarAngle = Math.PI / 2 - 0.02;
-controls.mouseButtons = {
-  LEFT: THREE.MOUSE.ROTATE,
-  MIDDLE: THREE.MOUSE.DOLLY,
-  RIGHT: THREE.MOUSE.PAN
-};
+// ══════════════════════════════════════════════════════
+const orbit = new OrbitControls(camera, renderer.domElement);
+orbit.enableDamping    = true;
+orbit.dampingFactor    = 0.06;
+orbit.screenSpacePanning = true;
+orbit.minZoom = 0.15; orbit.maxZoom = 8;
+orbit.maxPolarAngle = Math.PI/2 - 0.01;
+orbit.mouseButtons = { LEFT:THREE.MOUSE.ROTATE, MIDDLE:THREE.MOUSE.DOLLY, RIGHT:THREE.MOUSE.PAN };
 
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+//  TRANSFORM CONTROLS
+// ══════════════════════════════════════════════════════
+const xform = new TransformControls(camera, renderer.domElement);
+xform.setMode('translate');
+xform.setSpace('world');
+scene.add(xform);
+xform.addEventListener('dragging-changed', e => { orbit.enabled = !e.value; });
+xform.addEventListener('objectChange', () => { if(selectedObj) syncProps(selectedObj); });
+
+// ══════════════════════════════════════════════════════
 //  MATERIALS
-// ══════════════════════════════════════════════════════════════════
-const M = {};
-
-function initMaterials() {
-  M.ground         = new THREE.MeshLambertMaterial({ color: 0xc8c0b2 });
-  M.groundAlt      = new THREE.MeshLambertMaterial({ color: 0xc1bab0 });
-  M.road           = new THREE.MeshLambertMaterial({ color: 0xa8a098 });
-  M.roadMark       = new THREE.MeshLambertMaterial({ color: 0x959088 });
-  M.sidewalk       = new THREE.MeshLambertMaterial({ color: 0xd4ccc0 });
-  M.sidewalkAlt    = new THREE.MeshLambertMaterial({ color: 0xcec8bc });
-  M.curb           = new THREE.MeshLambertMaterial({ color: 0x888078 });
-  M.grassSlot      = new THREE.MeshLambertMaterial({ color: 0x4a5c3a });
-  M.grassBorder    = new THREE.MeshLambertMaterial({ color: 0x3a4830 });
-  M.buildingSlot   = new THREE.MeshLambertMaterial({ color: 0x38496a });
-  M.buildingBorder = new THREE.MeshLambertMaterial({ color: 0x2c3854 });
-  M.step           = new THREE.MeshLambertMaterial({ color: 0xb5afa5 });
-  M.gridMinor      = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.045 });
-  M.gridMajor      = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.11 });
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  SCENE HIERARCHY
-// ══════════════════════════════════════════════════════════════════
-const G = {
-  map:           new THREE.Group(),
-  ground:        new THREE.Group(),
-  roads:         new THREE.Group(),
-  sidewalks:     new THREE.Group(),
-  curbs:         new THREE.Group(),
-  grassSlots:    new THREE.Group(),
-  buildingSlots: new THREE.Group(),
-  steps:         new THREE.Group(),
-  grid:          new THREE.Group(),
-  // OBJECTS (empty — stage 2+)
-  objects:       new THREE.Group(),
-  buildings:     new THREE.Group(),
-  vegetation:    new THREE.Group(),
-  characters:    new THREE.Group(),
-  props:         new THREE.Group(),
-  // Labels
-  labels:        new THREE.Group(),
+// ══════════════════════════════════════════════════════
+const MAT = {
+  ground    : new THREE.MeshLambertMaterial({ color:0xc8c0b2 }),
+  groundAlt : new THREE.MeshLambertMaterial({ color:0xbeb6aa }),
+  road      : new THREE.MeshLambertMaterial({ color:0xa8a098 }),
+  roadLine  : new THREE.MeshLambertMaterial({ color:0x949088 }),
+  sidewalk  : new THREE.MeshLambertMaterial({ color:0xd0c8bc }),
+  curb      : new THREE.MeshLambertMaterial({ color:0x908880 }),
+  curbRed   : new THREE.MeshLambertMaterial({ color:0xb04030 }),  // ladrillo rojo
+  soil      : new THREE.MeshLambertMaterial({ color:0x5c4828 }),  // tierra
+  grassBase : new THREE.MeshLambertMaterial({ color:0x3c6c28 }),  // verde base
+  grassBlade: new THREE.MeshLambertMaterial({ color:0x55aa35, vertexColors:false }),
+  buildSlot : new THREE.MeshLambertMaterial({ color:0x38496a }),
+  buildBord : new THREE.MeshLambertMaterial({ color:0x2c3854 }),
+  joint     : new THREE.MeshLambertMaterial({ color:0xb0a89a }),  // junta cemento
+  ghostOk   : new THREE.MeshLambertMaterial({ color:0x55ff88, transparent:true, opacity:.38, depthWrite:false }),
+  gridMinor : new THREE.LineBasicMaterial({ color:0xffffff, transparent:true, opacity:.04 }),
+  gridMajor : new THREE.LineBasicMaterial({ color:0xffffff, transparent:true, opacity:.10 }),
 };
 
-G.map.name = 'MAP';
-G.objects.name = 'OBJECTS';
-G.labels.name = 'LABELS';
+// ══════════════════════════════════════════════════════
+//  SCENE GROUPS
+// ══════════════════════════════════════════════════════
+const GRP = {
+  placed  : new THREE.Group(), // all user-placed tiles
+  grid    : new THREE.Group(),
+  ghost   : new THREE.Group(), // preview ghost
+  ground  : new THREE.Group(), // base terrain (static)
+};
+GRP.placed.name = 'PlacedObjects';
+scene.add(GRP.placed, GRP.grid, GRP.ghost, GRP.ground);
 
-G.map.add(G.ground, G.roads, G.sidewalks, G.curbs, G.grassSlots, G.buildingSlots, G.steps, G.grid);
-G.objects.add(G.buildings, G.vegetation, G.characters, G.props);
-
-scene.add(G.map, G.objects, G.labels);
-
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 //  LIGHTING
-// ══════════════════════════════════════════════════════════════════
-function setupLighting() {
-  const ambient = new THREE.AmbientLight(0xd0d8e8, 0.62);
-  scene.add(ambient);
+// ══════════════════════════════════════════════════════
+const ambLight = new THREE.AmbientLight(0xd0d8e8, 0.6);
+scene.add(ambLight);
 
-  const sun = new THREE.DirectionalLight(0xfff8e8, 1.45);
-  sun.position.set(-50, 90, 50);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  Object.assign(sun.shadow.camera, { left:-100, right:100, top:100, bottom:-100, near:0.1, far:350 });
-  sun.shadow.bias = -0.0006;
-  sun.shadow.radius = 2.5;
-  scene.add(sun);
+const sun = new THREE.DirectionalLight(0xfff8e8, 1.5);
+sun.position.set(-50, 90, 50);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera, {left:-120,right:120,top:120,bottom:-120,near:.1,far:400});
+sun.shadow.bias   = -0.0005;
+sun.shadow.radius = 2.5;
+scene.add(sun);
 
-  const fill = new THREE.DirectionalLight(0xc8d8f0, 0.28);
-  fill.position.set(60, 45, -40);
-  scene.add(fill);
+scene.add(new THREE.DirectionalLight(0xc8d8f0, 0.25).translateZ(-1).translateX(60).translateY(40));
+scene.add(new THREE.HemisphereLight(0xa8bcd0, 0x708090, 0.35));
 
-  const hemi = new THREE.HemisphereLight(0xaec4d8, 0x8090a0, 0.38);
-  scene.add(hemi);
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  PRIMITIVE FACTORIES
-// ══════════════════════════════════════════════════════════════════
-
-/** Box with pivot at bottom-center */
-function box(w, h, d, mat) {
-  const geo = new THREE.BoxGeometry(w, h, d);
-  geo.translate(0, h / 2, 0);
+// ══════════════════════════════════════════════════════
+//  PRIMITIVE HELPERS
+// ══════════════════════════════════════════════════════
+function mkBox(w, h, d, mat) {
+  const geo = new THREE.BoxGeometry(w,h,d);
+  geo.translate(0, h/2, 0);
   const m = new THREE.Mesh(geo, mat);
-  m.castShadow = true;
-  m.receiveShadow = true;
+  m.castShadow = true; m.receiveShadow = true;
   return m;
 }
 
-// ══════════════════════════════════════════════════════════════════
-//  MAP ELEMENT FACTORIES
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+//  3D TILE BUILDERS
+// ══════════════════════════════════════════════════════
 
-function createRoad(x, z, w, d, opts = {}) {
+/* ── CONCRETE ────────────────────────────────────────── */
+function buildConcrete(w, d) {
   const g = new THREE.Group();
-  g.name = opts.name || `road_${x}_${z}`;
-  const slab = box(w, 0.04, d, M.road);
-  slab.position.y = LAYER_H.road;
+  g.userData.tileType = 'concrete';
+
+  // Slab
+  const slab = mkBox(w, 0.10, d, MAT.ground);
   g.add(slab);
-  if (opts.centerLine) {
-    const lw = opts.horizontal ? w * 0.98 : 0.18;
-    const ld = opts.horizontal ? 0.18 : d * 0.98;
-    const line = box(lw, 0.005, ld, M.roadMark);
-    line.position.y = LAYER_H.road + 0.042;
-    g.add(line);
+
+  // Joint lines (horizontal + vertical, every 1m)
+  const jy = 0.101;
+  const jh = 0.008, jd2 = 0.015;
+  for(let iz = 1; iz < d; iz++){
+    const jz = iz - d/2;
+    const jb = mkBox(w, jh, jd2, MAT.joint);
+    jb.position.set(0, jy, jz); g.add(jb);
   }
-  g.position.set(x, 0, z);
+  for(let ix = 1; ix < w; ix++){
+    const jx = ix - w/2;
+    const jb = mkBox(jd2, jh, d, MAT.joint);
+    jb.position.set(jx, jy, 0); g.add(jb);
+  }
   return g;
 }
 
-function createSidewalk(x, z, w, d, opts = {}) {
+/* ── ROAD ─────────────────────────────────────────────── */
+function buildRoad(w, d) {
   const g = new THREE.Group();
-  g.name = opts.name || `sidewalk_${x}_${z}`;
-  const mat = opts.alt ? M.sidewalkAlt : M.sidewalk;
-  const slab = box(w, LAYER_H.sidewalk, d, mat);
+  g.userData.tileType = 'road';
+
+  const slab = mkBox(w, 0.05, d, MAT.road);
   g.add(slab);
-  g.position.set(x, 0, z);
+
+  // Center dashed line
+  const isH = w >= d;
+  const lineLen = isH ? w*0.9 : 0.15;
+  const lineWid = isH ? 0.15 : d*0.9;
+  const lineM = mkBox(lineLen, 0.005, lineWid, MAT.roadLine);
+  lineM.position.set(0, 0.052, 0); g.add(lineM);
+
   return g;
 }
 
-function createCurb(x, z, w, d, opts = {}) {
+/* ── SIDEWALK ─────────────────────────────────────────── */
+function buildSidewalk(w, d) {
   const g = new THREE.Group();
-  g.name = opts.name || `curb_${x}_${z}`;
-  const c = box(w, LAYER_H.curb, d, M.curb);
-  g.add(c);
-  g.position.set(x, 0, z);
+  g.userData.tileType = 'sidewalk';
+
+  const slab = mkBox(w, 0.15, d, MAT.sidewalk);
+  g.add(slab);
+
+  // Curb edges (sides perpendicular to the long axis)
+  const isH = w >= d;
+  const curbH = 0.12, curbW = 0.18;
+  if(isH){
+    [-d/2, d/2].forEach(z => {
+      const c = mkBox(w, curbH, curbW, MAT.curb);
+      c.position.set(0, 0, z); g.add(c);
+    });
+  } else {
+    [-w/2, w/2].forEach(x => {
+      const c = mkBox(curbW, curbH, d, MAT.curb);
+      c.position.set(x, 0, 0); g.add(c);
+    });
+  }
   return g;
 }
 
-function createGrassSlot(x, z, w, d, opts = {}) {
-  const g = new THREE.Group();
-  g.name = opts.name || `grass_slot_${x}_${z}`;
-  g.userData = { type: 'grassSlot', w, d };
+/* ── GRASS 3D ─────────────────────────────────────────── */
+const _bladeGeo = (() => {
+  const g = new THREE.ConeGeometry(0.042, 0.26, 3, 1);
+  g.translate(0, 0.13, 0); // pivot at base
+  return g;
+})();
 
-  const soil = box(w, LAYER_H.grassSlot, d, M.grassSlot);
+function buildGrass(w, d) {
+  const g = new THREE.Group();
+  g.userData.tileType = 'grass';
+
+  const bw = 0.18, bh = 0.15; // brick border
+
+  // Red brick border frame
+  [
+    { pos:[0, 0, -(d/2+bw/2)], size:[w+bw*2, bh, bw] },
+    { pos:[0, 0,  (d/2+bw/2)], size:[w+bw*2, bh, bw] },
+    { pos:[-(w/2+bw/2), 0, 0], size:[bw, bh, d] },
+    { pos:[ (w/2+bw/2), 0, 0], size:[bw, bh, d] },
+  ].forEach(e => {
+    const b = mkBox(...e.size, MAT.curbRed);
+    b.position.set(...e.pos); g.add(b);
+  });
+
+  // Soil base
+  const soilH = 0.09;
+  const soil = mkBox(w, soilH, d, MAT.soil);
+  soil.position.y = 0.02;
   g.add(soil);
 
-  // border frame
-  const bw = 0.14, bh = 0.09;
-  [
-    { pos:[0,0,-d/2-bw/2], size:[w+bw*2, bh, bw] },
-    { pos:[0,0, d/2+bw/2], size:[w+bw*2, bh, bw] },
-    { pos:[-w/2-bw/2,0,0], size:[bw, bh, d] },
-    { pos:[ w/2+bw/2,0,0], size:[bw, bh, d] },
-  ].forEach(e => {
-    const b = box(...e.size, M.grassBorder);
-    b.position.set(...e.pos);
-    g.add(b);
-  });
+  // Grass blades (InstancedMesh)
+  const count = Math.min(Math.floor(w * d * 22), 900);
+  const blades = new THREE.InstancedMesh(_bladeGeo, MAT.grassBlade.clone(), count);
+  blades.castShadow = true;
+  blades.material.vertexColors = false;
 
-  g.position.set(x, 0, z);
+  const dummy = new THREE.Object3D();
+  const baseY = 0.02 + soilH; // top of soil
+
+  for(let i = 0; i < count; i++){
+    const px = (Math.random()-.5) * (w - 0.12);
+    const pz = (Math.random()-.5) * (d - 0.12);
+    dummy.position.set(px, baseY, pz);
+    dummy.rotation.set(
+      (Math.random()-.5)*.35,
+      Math.random()*Math.PI*2,
+      (Math.random()-.5)*.35
+    );
+    const s = 0.55 + Math.random()*.85;
+    dummy.scale.set(s*.9 + Math.random()*.2, s, s*.9 + Math.random()*.2);
+    dummy.updateMatrix();
+    blades.setMatrixAt(i, dummy.matrix);
+  }
+  blades.instanceMatrix.needsUpdate = true;
+
+  // Per-blade color variation
+  for(let i = 0; i < count; i++){
+    const h = 0.28 + (Math.random()-.5)*.06;
+    const s = 0.65 + Math.random()*.25;
+    const l = 0.25 + Math.random()*.20;
+    blades.setColorAt(i, new THREE.Color().setHSL(h, s, l));
+  }
+  if(blades.instanceColor) blades.instanceColor.needsUpdate = true;
+
+  g.add(blades);
   return g;
 }
 
-function createBuildingSlot(x, z, w, d, opts = {}) {
+/* ── BUILDING FOOTPRINT ───────────────────────────────── */
+function buildBuilding(w, d) {
   const g = new THREE.Group();
-  g.name = opts.name || `building_slot_${x}_${z}`;
-  g.userData = { type: 'buildingSlot', w, d, ...opts };
+  g.userData.tileType = 'building';
 
-  const platform = box(w, LAYER_H.buildingBase, d, M.buildingSlot);
+  const platform = mkBox(w, 0.08, d, MAT.buildSlot);
   g.add(platform);
 
-  const bw = 0.22, fh = LAYER_H.buildingBase + 0.05;
+  const bw = 0.24, fh = 0.13;
   [
-    { pos:[0,0,-d/2-bw/2], size:[w+bw*2, fh, bw] },
-    { pos:[0,0, d/2+bw/2], size:[w+bw*2, fh, bw] },
-    { pos:[-w/2-bw/2,0,0], size:[bw, fh, d] },
-    { pos:[ w/2+bw/2,0,0], size:[bw, fh, d] },
+    { pos:[0,0,-(d/2+bw/2)], size:[w+bw*2, fh, bw] },
+    { pos:[0,0, (d/2+bw/2)], size:[w+bw*2, fh, bw] },
+    { pos:[-(w/2+bw/2),0,0], size:[bw, fh, d] },
+    { pos:[ (w/2+bw/2),0,0], size:[bw, fh, d] },
   ].forEach(e => {
-    const b = box(...e.size, M.buildingBorder);
-    b.position.set(...e.pos);
-    g.add(b);
+    const b = mkBox(...e.size, MAT.buildBord);
+    b.position.set(...e.pos); g.add(b);
   });
-
-  g.position.set(x, 0, z);
   return g;
 }
 
-function createStep(x, z, w, d, height = 0.08, opts = {}) {
-  const s = box(w, height, d, M.step);
-  s.name = opts.name || `step_${x}_${z}`;
-  s.position.set(x, 0, z);
-  return s;
+/* ── FACTORY DISPATCH ─────────────────────────────────── */
+function buildTile(tileDef) {
+  switch(tileDef.type){
+    case 'concrete': return buildConcrete(tileDef.w, tileDef.d);
+    case 'road':     return buildRoad    (tileDef.w, tileDef.d);
+    case 'sidewalk': return buildSidewalk(tileDef.w, tileDef.d);
+    case 'grass':    return buildGrass   (tileDef.w, tileDef.d);
+    case 'building': return buildBuilding(tileDef.w, tileDef.d);
+  }
 }
 
-// ══════════════════════════════════════════════════════════════════
+/* ── GHOST TILE ───────────────────────────────────────── */
+function buildGhostTile(tileDef) {
+  const g = new THREE.Group();
+  const m = mkBox(tileDef.w, 0.12, tileDef.d, MAT.ghostOk);
+  g.add(m);
+  return g;
+}
+
+// ══════════════════════════════════════════════════════
 //  GRID
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+const GRID_W = 120, GRID_D = 80;
+
 function buildGrid() {
   const g = new THREE.Group();
-  g.name = 'Grid';
-  const y = 0.001;
-  const hW = MAP_W / 2, hD = MAP_D / 2;
-
-  for (let i = 0; i <= MAP_W; i++) {
-    const x = i - hW;
-    const mat = i % 10 === 0 ? M.gridMajor : M.gridMinor;
-    const pts = [new THREE.Vector3(x,y,-hD), new THREE.Vector3(x,y,hD)];
-    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
+  const y = 0.002, hW=GRID_W/2, hD=GRID_D/2;
+  for(let i=0; i<=GRID_W; i++){
+    const x=i-hW, mat=i%10===0?MAT.gridMajor:MAT.gridMinor;
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,y,-hD),new THREE.Vector3(x,y,hD)]),mat));
   }
-  for (let i = 0; i <= MAP_D; i++) {
-    const z = i - hD;
-    const mat = i % 10 === 0 ? M.gridMajor : M.gridMinor;
-    const pts = [new THREE.Vector3(-hW,y,z), new THREE.Vector3(hW,y,z)];
-    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
+  for(let i=0; i<=GRID_D; i++){
+    const z=i-hD, mat=i%10===0?MAT.gridMajor:MAT.gridMinor;
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-hW,y,z),new THREE.Vector3(hW,y,z)]),mat));
   }
   return g;
 }
+GRP.grid.add(buildGrid());
 
-// ══════════════════════════════════════════════════════════════════
-//  LABELS (canvas sprites)
-// ══════════════════════════════════════════════════════════════════
-function createLabel(text, color = '#8fb3e8') {
-  const cv = document.createElement('canvas');
-  cv.width = 256; cv.height = 72;
-  const ctx = cv.getContext('2d');
-  ctx.fillStyle = 'rgba(12,18,35,0.88)';
-  ctx.beginPath(); ctx.roundRect(3,3,250,66,8); ctx.fill();
-  ctx.strokeStyle = color; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.roundRect(3,3,250,66,8); ctx.stroke();
-  ctx.fillStyle = color;
-  ctx.font = 'bold 20px system-ui, sans-serif';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(text, 128, 36);
-  const tex = new THREE.CanvasTexture(cv);
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-  sp.scale.set(8, 2.3, 1);
-  return sp;
+// Static base ground
+const baseGeo = new THREE.BoxGeometry(GRID_W, 0.06, GRID_D);
+baseGeo.translate(0, -0.03, 0);
+const baseMesh = new THREE.Mesh(baseGeo, MAT.groundAlt);
+baseMesh.receiveShadow = true;
+GRP.ground.add(baseMesh);
+
+// Invisible hit plane for raycasting
+const hitPlane = new THREE.Mesh(
+  new THREE.PlaneGeometry(GRID_W*2, GRID_D*2),
+  new THREE.MeshBasicMaterial({ visible:false, side:THREE.DoubleSide })
+);
+hitPlane.rotation.x = -Math.PI/2;
+hitPlane.position.y = 0.001;
+scene.add(hitPlane);
+
+// ══════════════════════════════════════════════════════
+//  EDITOR STATE
+// ══════════════════════════════════════════════════════
+let editorMode   = 'place';  // 'place' | 'select'
+let activeTile   = null;     // current tile def for placing
+let selectedObj  = null;
+let ghostMesh    = null;
+let snapToGrid   = true;
+let showGrid     = true;
+let objCounter   = 0;
+const placedList = [];        // { mesh, def }
+const undoStack  = [];        // undo actions
+
+// ══════════════════════════════════════════════════════
+//  RAYCASTER
+// ══════════════════════════════════════════════════════
+const raycaster = new THREE.Raycaster();
+const mouse2d   = new THREE.Vector2();
+
+function toMouse(e) {
+  const r = renderer.domElement.getBoundingClientRect();
+  mouse2d.set(
+    ((e.clientX - r.left) / r.width)  * 2 - 1,
+   -((e.clientY - r.top)  / r.height) * 2 + 1
+  );
 }
 
-// ══════════════════════════════════════════════════════════════════
-//  BUILD MAP
-// ══════════════════════════════════════════════════════════════════
-function buildMap() {
-  initMaterials();
+function snapXZ(x, z) {
+  if(!snapToGrid) return { x, z };
+  return { x: Math.round(x), z: Math.round(z) };
+}
 
-  // ── 1. SUELO BASE ─────────────────────────────────────────────
-  const baseGround = box(MAP_W, 0.1, MAP_D, M.ground);
-  G.ground.add(baseGround);
+function raycastGround(e) {
+  toMouse(e);
+  raycaster.setFromCamera(mouse2d, camera);
+  const hits = raycaster.intersectObject(hitPlane);
+  if(!hits.length) return null;
+  const p = hits[0].point;
+  return snapXZ(p.x, p.z);
+}
 
-  // Variaciones zonales de tonalidad
-  const leftZone = box(50, 0.05, 62, M.groundAlt);
-  leftZone.position.set(-35, 0.02, 5);
-  G.ground.add(leftZone);
+// ══════════════════════════════════════════════════════
+//  GHOST PREVIEW
+// ══════════════════════════════════════════════════════
+function updateGhost(pos) {
+  if(!ghostMesh || !pos) { GRP.ghost.visible = false; return; }
+  GRP.ghost.visible = true;
+  ghostMesh.position.set(pos.x, 0, pos.z);
+}
 
-  const rearZone = box(60, 0.05, 50, M.groundAlt);
-  rearZone.position.set(28, 0.02, -14);
-  G.ground.add(rearZone);
+function setActiveTile(tileDef) {
+  activeTile = tileDef;
+  // Clear old ghost
+  while(GRP.ghost.children.length) GRP.ghost.remove(GRP.ghost.children[0]);
+  if(tileDef){
+    ghostMesh = buildGhostTile(tileDef);
+    GRP.ghost.add(ghostMesh);
+  } else {
+    ghostMesh = null;
+    GRP.ghost.visible = false;
+  }
+}
 
-  // ── 2. CALLES INTERNAS ────────────────────────────────────────
-  // Calle frontal principal (E-O frente al edificio)
-  G.roads.add(createRoad(  0, 28, MAP_W, 10, { name:'road_01_frontal',    centerLine:true, horizontal:true  }));
-  // Calle lateral izquierda (N-S lado oeste)
-  G.roads.add(createRoad(-48,  0,    10, 72, { name:'road_02_lat_izq',    centerLine:true, horizontal:false }));
-  // Calle lateral derecha / acceso
-  G.roads.add(createRoad( 48, -5,     8, 58, { name:'road_03_lat_der',    centerLine:false }));
-  // Calle interna de patio
-  G.roads.add(createRoad(-20, 10,     8, 38, { name:'road_04_acceso_int' }));
-  // Calle trasera (fondo)
-  G.roads.add(createRoad(  5,-33,   100,  8, { name:'road_05_trasera',    centerLine:true, horizontal:true  }));
-  // Circulación junto al edificio (der)
-  G.roads.add(createRoad( 40,  0,     6, 50, { name:'road_06_circ_edificio' }));
+// ══════════════════════════════════════════════════════
+//  PLACE TILE
+// ══════════════════════════════════════════════════════
+function placeTile(pos) {
+  if(!activeTile || !pos) return;
+  const mesh = buildTile(activeTile);
+  objCounter++;
+  mesh.name = `${activeTile.id}_${objCounter}`;
+  mesh.position.set(pos.x, 0, pos.z);
+  mesh.userData.def = activeTile;
+  mesh.userData.label = mesh.name;
+  GRP.placed.add(mesh);
+  placedList.push(mesh);
+  undoStack.push({ type:'add', mesh });
+  refreshObjList();
+}
 
-  // ── 3. VEREDAS ELEVADAS ───────────────────────────────────────
-  G.sidewalks.add(createSidewalk( 10, 18, 70,  5, { name:'sw_01_frente' }));
-  G.sidewalks.add(createSidewalk(-36,  8,  4, 50, { name:'sw_02_lat_izq', alt:true }));
-  G.sidewalks.add(createSidewalk( 32,  5,  4, 45, { name:'sw_03_lat_der' }));
-  G.sidewalks.add(createSidewalk(  5,-27, 90,  4, { name:'sw_04_trasera', alt:true }));
-  G.sidewalks.add(createSidewalk(-53,  5,  4, 62, { name:'sw_05_perim_izq' }));
-  G.sidewalks.add(createSidewalk(  0, 38, 96,3.5, { name:'sw_06_perim_norte' }));
+// ══════════════════════════════════════════════════════
+//  SELECT
+// ══════════════════════════════════════════════════════
+function selectObj(mesh) {
+  selectedObj = mesh;
+  xform.attach(mesh);
+  document.getElementById('panel-right').classList.add('open');
+  syncProps(mesh);
+  highlightObjList(mesh);
+}
 
-  // ── 4. CORDONES ───────────────────────────────────────────────
-  G.curbs.add(createCurb( 10, 23.2, 70, 0.35, { name:'curb_01_frente_N' }));
-  G.curbs.add(createCurb( 10, 15.4, 70, 0.35, { name:'curb_02_frente_S' }));
-  G.curbs.add(createCurb(-32,  8, 0.35, 50,   { name:'curb_03_latizq_E' }));
-  G.curbs.add(createCurb(-40,  8, 0.35, 50,   { name:'curb_04_latizq_O' }));
-  G.curbs.add(createCurb(  5,-29.2, 100, 0.35,{ name:'curb_05_trasera_N' }));
-  G.curbs.add(createCurb(  5,-36.8, 100, 0.35,{ name:'curb_06_trasera_S' }));
-  G.curbs.add(createCurb( 34.3, 5, 0.35, 45,  { name:'curb_07_latder_E' }));
-  G.curbs.add(createCurb( 29.7, 5, 0.35, 45,  { name:'curb_08_latder_O' }));
-  G.curbs.add(createCurb(  0, 39.8, 96, 0.35, { name:'curb_09_perim_N' }));
+function deselect() {
+  selectedObj = null;
+  xform.detach();
+  document.getElementById('panel-right').classList.remove('open');
+  highlightObjList(null);
+}
 
-  // ── 5. CANTEROS (GRASS SLOTS) ─────────────────────────────────
-  G.grassSlots.add(createGrassSlot( -5, 21, 30, 3.5, { name:'grass_01_central_frente' }));
-  G.grassSlots.add(createGrassSlot(-40, 10,  4,  35, { name:'grass_02_lat_izq_palmeras' }));
-  G.grassSlots.add(createGrassSlot(-28, 20,  8,   6, { name:'grass_03_patio_a' }));
-  G.grassSlots.add(createGrassSlot(-16, 20,  8,   6, { name:'grass_04_patio_b' }));
-  G.grassSlots.add(createGrassSlot(-50, 28, 12,  14, { name:'grass_05_noroeste' }));
-  G.grassSlots.add(createGrassSlot(  0,-15, 55,   7, { name:'grass_06_trasero_central' }));
-  G.grassSlots.add(createGrassSlot( 36, -8,  8,  28, { name:'grass_07_lat_der' }));
-  G.grassSlots.add(createGrassSlot( 52, 25, 10,  22, { name:'grass_08_noreste' }));
-  G.grassSlots.add(createGrassSlot(  0,-38, 84,   4, { name:'grass_09_perim_sur' }));
-  G.grassSlots.add(createGrassSlot( 22, 14, 14, 2.5, { name:'grass_10_acceso_E' }));
-  G.grassSlots.add(createGrassSlot( -4, 14, 14, 2.5, { name:'grass_11_acceso_C' }));
+function trySelectAt(e) {
+  toMouse(e);
+  raycaster.setFromCamera(mouse2d, camera);
+  // Collect all descendant meshes from placed group
+  const targets = [];
+  GRP.placed.traverse(o => { if(o.isMesh || o instanceof THREE.InstancedMesh) targets.push(o); });
+  const hits = raycaster.intersectObjects(targets);
+  if(!hits.length){ deselect(); return; }
+  // Walk up to find direct child of GRP.placed
+  let obj = hits[0].object;
+  while(obj.parent && obj.parent !== GRP.placed) obj = obj.parent;
+  if(obj.parent === GRP.placed) selectObj(obj);
+  else deselect();
+}
 
-  // ── 6. FOOTPRINTS DE EDIFICIOS ────────────────────────────────
-  G.buildingSlots.add(createBuildingSlot( 15, -3, 68, 25, { name:'building_01_principal' }));
-  G.buildingSlots.add(createBuildingSlot( 46,-18, 24, 14, { name:'building_02_ala_der' }));
-  G.buildingSlots.add(createBuildingSlot(-45,-15, 16, 20, { name:'building_03_pabellon' }));
+// ══════════════════════════════════════════════════════
+//  PROPERTIES PANEL
+// ══════════════════════════════════════════════════════
+function syncProps(mesh) {
+  if(!mesh) return;
+  document.getElementById('pr-name').textContent = mesh.name;
+  const typeEl = document.getElementById('pr-type');
+  const t = mesh.userData.def?.type || 'unknown';
+  typeEl.textContent = t; typeEl.className = 'pr-type-badge ' + t;
 
-  // ── 7. ESCALONES / PLATAFORMAS ────────────────────────────────
-  G.steps.add(createStep( 10,  9.8, 22, 1.2, 0.05, { name:'step_01_acceso_peldano1' }));
-  G.steps.add(createStep( 10,  8.5, 19, 1.0, 0.04, { name:'step_02_acceso_peldano2' }));
+  document.getElementById('pr-px').value = +mesh.position.x.toFixed(2);
+  document.getElementById('pr-py').value = +mesh.position.y.toFixed(2);
+  document.getElementById('pr-pz').value = +mesh.position.z.toFixed(2);
+  document.getElementById('pr-ry').value = +THREE.MathUtils.radToDeg(mesh.rotation.y).toFixed(1);
+  document.getElementById('pr-sx').value = +mesh.scale.x.toFixed(2);
+  document.getElementById('pr-sy').value = +mesh.scale.y.toFixed(2);
+  document.getElementById('pr-sz').value = +mesh.scale.z.toFixed(2);
+}
 
-  // Plataforma de acceso principal
-  const acc = box(26, 0.06, 3.8, M.sidewalk);
-  acc.position.set(10, 0, 11);
-  acc.name = 'platform_acceso_principal';
-  G.steps.add(acc);
+['pr-px','pr-py','pr-pz'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    if(!selectedObj) return;
+    const px = +document.getElementById('pr-px').value;
+    const py = +document.getElementById('pr-py').value;
+    const pz = +document.getElementById('pr-pz').value;
+    selectedObj.position.set(px, py, pz);
+  });
+});
+document.getElementById('pr-ry').addEventListener('input', () => {
+  if(!selectedObj) return;
+  selectedObj.rotation.y = THREE.MathUtils.degToRad(+document.getElementById('pr-ry').value);
+});
+['pr-sx','pr-sy','pr-sz'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    if(!selectedObj) return;
+    selectedObj.scale.set(
+      +document.getElementById('pr-sx').value,
+      +document.getElementById('pr-sy').value,
+      +document.getElementById('pr-sz').value
+    );
+  });
+});
 
-  G.steps.add(createStep( 30,  8.0,  5, 1.0, 0.05, { name:'step_03_lat_der' }));
-  G.steps.add(createStep(-20,  6.0,  7, 1.5, 0.04, { name:'ramp_01_tramo1' }));
-  G.steps.add(createStep(-20,  4.5,  7, 1.5, 0.08, { name:'ramp_01_tramo2' }));
+// ══════════════════════════════════════════════════════
+//  OBJECT LIST (right panel)
+// ══════════════════════════════════════════════════════
+function refreshObjList() {
+  const el = document.getElementById('obj-list');
+  el.innerHTML = '';
+  [...placedList].reverse().forEach(mesh => {
+    const item = document.createElement('div');
+    item.className = 'obj-item' + (mesh===selectedObj?' sel':'');
+    item.dataset.meshName = mesh.name;
 
-  // ── 8. GRID ──────────────────────────────────────────────────
-  G.grid.add(buildGrid());
+    const lbl = document.createElement('span');
+    lbl.textContent = mesh.name;
+    lbl.style.overflow = 'hidden'; lbl.style.textOverflow = 'ellipsis';
+    lbl.style.whiteSpace = 'nowrap'; lbl.style.flex = '1';
+    lbl.style.cursor = 'pointer';
+    lbl.addEventListener('click', () => { setMode('select'); selectObj(mesh); });
 
-  // ── 9. LABELS ────────────────────────────────────────────────
-  const labelDefs = [
-    { text:'Edificio Principal',  x: 15, y:3.5, z: -3, color:'#8fb3e8' },
-    { text:'Ala Derecha',         x: 46, y:3.5, z:-18, color:'#8fb3e8' },
-    { text:'Pabellón Izq.',       x:-45, y:3.5, z:-15, color:'#8fb3e8' },
-    { text:'Cantero Central',     x: -5, y:2.8, z: 21, color:'#7cb87c' },
-    { text:'Cantero Lateral',     x:-40, y:2.8, z: 10, color:'#7cb87c' },
-    { text:'Cantero Trasero',     x:  0, y:2.8, z:-15, color:'#7cb87c' },
-    { text:'Calle Frontal',       x:  0, y:2.2, z: 28, color:'#c0a060' },
-    { text:'Vereda Frente',       x: 10, y:2.8, z: 18, color:'#b0c0d8' },
-    { text:'Acceso Principal',    x: 10, y:2.2, z: 10, color:'#c0c0a0' },
-  ];
-  labelDefs.forEach(d => {
-    const lbl = createLabel(d.text, d.color);
-    lbl.position.set(d.x, d.y, d.z);
-    G.labels.add(lbl);
+    const del = document.createElement('span');
+    del.className = 'obj-del'; del.textContent = '×';
+    del.addEventListener('click', e => { e.stopPropagation(); removeObj(mesh); });
+
+    item.append(lbl, del);
+    el.appendChild(item);
   });
 }
 
-// ══════════════════════════════════════════════════════════════════
-//  UI EVENTS
-// ══════════════════════════════════════════════════════════════════
-let showGrid   = true;
-let showLabels = true;
+function highlightObjList(mesh) {
+  document.querySelectorAll('.obj-item').forEach(el => {
+    el.classList.toggle('sel', mesh && el.dataset.meshName === mesh.name);
+  });
+}
 
-document.getElementById('btn-reset-cam').addEventListener('click', () => {
-  setIsoCam(); controls.target.set(0,0,0); controls.update();
-});
-document.getElementById('btn-toggle-grid').addEventListener('click', function() {
-  showGrid = !showGrid;
-  G.grid.visible = showGrid;
-  this.classList.toggle('active', showGrid);
-});
-document.getElementById('btn-toggle-grid').classList.add('active');
+// ══════════════════════════════════════════════════════
+//  REMOVE / UNDO
+// ══════════════════════════════════════════════════════
+function removeObj(mesh) {
+  undoStack.push({ type:'remove', mesh, pos:mesh.position.clone(), rot:mesh.rotation.clone(), scl:mesh.scale.clone() });
+  GRP.placed.remove(mesh);
+  const idx = placedList.indexOf(mesh);
+  if(idx>=0) placedList.splice(idx,1);
+  if(selectedObj===mesh) deselect();
+  refreshObjList();
+}
 
-document.getElementById('btn-toggle-labels').addEventListener('click', function() {
-  showLabels = !showLabels;
-  G.labels.visible = showLabels;
-  this.classList.toggle('active', showLabels);
-});
-document.getElementById('btn-toggle-labels').classList.add('active');
+function undo() {
+  const act = undoStack.pop();
+  if(!act) return;
+  if(act.type==='add'){
+    GRP.placed.remove(act.mesh);
+    const idx=placedList.indexOf(act.mesh);
+    if(idx>=0) placedList.splice(idx,1);
+    if(selectedObj===act.mesh) deselect();
+  } else if(act.type==='remove'){
+    act.mesh.position.copy(act.pos);
+    act.mesh.rotation.copy(act.rot);
+    act.mesh.scale.copy(act.scl);
+    GRP.placed.add(act.mesh);
+    placedList.push(act.mesh);
+  }
+  refreshObjList();
+}
 
-document.getElementById('btn-top-view').addEventListener('click', function() {
-  camera.position.set(0, 160, 0.01);
-  camera.lookAt(0,0,0);
-  controls.target.set(0,0,0); controls.update();
-  document.getElementById('btn-iso-view').classList.remove('active');
-  this.classList.add('active');
-});
-document.getElementById('btn-iso-view').addEventListener('click', function() {
-  setIsoCam(); controls.target.set(0,0,0); controls.update();
-  document.getElementById('btn-top-view').classList.remove('active');
-  this.classList.add('active');
-});
+// ══════════════════════════════════════════════════════
+//  MODE MANAGEMENT
+// ══════════════════════════════════════════════════════
+function setMode(m) {
+  editorMode = m;
+  const modeText = document.getElementById('mode-text');
+  const btnSel = document.getElementById('btn-select');
+  const btnPl  = document.getElementById('btn-place');
 
-window.addEventListener('keydown', e => {
-  if (e.key === 'r' || e.key === 'R') {
-    setIsoCam(); controls.target.set(0,0,0); controls.update();
+  if(m==='place'){
+    modeText.textContent = 'COLOCAR';
+    btnPl.classList.add('active','green'); btnSel.classList.remove('active','green');
+    renderer.domElement.style.cursor = 'crosshair';
+    deselect();
+    GRP.ghost.visible = !!ghostMesh;
+  } else {
+    modeText.textContent = 'SELECCIONAR';
+    btnSel.classList.add('active'); btnPl.classList.remove('active','green');
+    renderer.domElement.style.cursor = 'default';
+    GRP.ghost.visible = false;
+    setActiveTile(null);
+    // Deactivate all tile buttons
+    document.querySelectorAll('.tile-btn').forEach(b=>b.classList.remove('active','grass'));
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  BUILD LEFT PANEL CATALOG
+// ══════════════════════════════════════════════════════
+function buildCatalog() {
+  const scroll = document.getElementById('catalog-scroll');
+  CATALOG.forEach(cat => {
+    const hdr = document.createElement('div');
+    hdr.className = 'cat-hdr';
+    hdr.innerHTML = `<span>${cat.icon} ${cat.cat}</span>`;
+    scroll.appendChild(hdr);
+
+    cat.tiles.forEach(tileDef => {
+      const btn = document.createElement('button');
+      btn.className = 'tile-btn';
+      btn.dataset.id = tileDef.id;
+      if(cat.isGrass) btn.dataset.grass = '1';
+      btn.innerHTML = `
+        <div class="tile-swatch" style="background:${cat.swatch};"></div>
+        <div class="tile-info">
+          <span class="tile-name">${tileDef.label}</span>
+          <span class="tile-size">${tileDef.desc}</span>
+        </div>`;
+      btn.addEventListener('click', () => {
+        // Toggle tile selection
+        if(activeTile?.id === tileDef.id){
+          setActiveTile(null);
+          btn.classList.remove('active','grass');
+          document.getElementById('mode-indicator').querySelector('#mode-text').textContent = 'COLOCAR';
+        } else {
+          document.querySelectorAll('.tile-btn').forEach(b=>b.classList.remove('active','grass'));
+          btn.classList.add('active');
+          if(cat.isGrass) btn.classList.add('grass');
+          setActiveTile(tileDef);
+          setMode('place');
+          const modeText = document.getElementById('mode-text');
+          modeText.textContent = `COLOCAR → ${tileDef.label}`;
+        }
+      });
+      scroll.appendChild(btn);
+    });
+  });
+}
+buildCatalog();
+
+// ══════════════════════════════════════════════════════
+//  CANVAS EVENTS
+// ══════════════════════════════════════════════════════
+renderer.domElement.addEventListener('mousemove', e => {
+  if(editorMode !== 'place') return;
+  const pos = raycastGround(e);
+  updateGhost(pos);
+  if(pos){
+    document.getElementById('cx').textContent = pos.x.toFixed(1);
+    document.getElementById('cz').textContent = pos.z.toFixed(1);
   }
 });
 
-// ══════════════════════════════════════════════════════════════════
+let mouseDownPos = null;
+renderer.domElement.addEventListener('mousedown', e => {
+  mouseDownPos = { x:e.clientX, y:e.clientY };
+});
+
+renderer.domElement.addEventListener('mouseup', e => {
+  if(!mouseDownPos) return;
+  const dx = e.clientX - mouseDownPos.x;
+  const dy = e.clientY - mouseDownPos.y;
+  mouseDownPos = null;
+  if(Math.sqrt(dx*dx+dy*dy) > 5) return; // was a drag, not a click
+
+  if(e.button !== 0) return;
+
+  if(editorMode === 'place'){
+    const pos = raycastGround(e);
+    if(pos) placeTile(pos);
+    refreshObjList();
+  } else {
+    // SELECT mode — only if xform not dragging
+    if(!xform.dragging) trySelectAt(e);
+  }
+});
+
+// Right-click → deselect or cancel tile
+renderer.domElement.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if(editorMode==='place'){
+    setActiveTile(null);
+    document.querySelectorAll('.tile-btn').forEach(b=>b.classList.remove('active','grass'));
+    document.getElementById('mode-text').textContent = 'COLOCAR';
+  } else {
+    deselect();
+  }
+});
+
+// ══════════════════════════════════════════════════════
+//  TOOLBAR EVENTS
+// ══════════════════════════════════════════════════════
+document.getElementById('btn-select').addEventListener('click', () => setMode('select'));
+document.getElementById('btn-place' ).addEventListener('click', () => setMode('place'));
+
+document.getElementById('btn-w').addEventListener('click', function(){
+  xform.setMode('translate');
+  document.querySelectorAll('.tool-btn[id^="btn-w"],[id^="btn-e"],[id^="btn-r"]').forEach(b=>b.classList.remove('active'));
+  this.classList.add('active');
+  setMode('select');
+});
+document.getElementById('btn-e').addEventListener('click', function(){
+  xform.setMode('rotate');
+  ['btn-w','btn-e','btn-r'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  this.classList.add('active');
+  setMode('select');
+});
+document.getElementById('btn-r').addEventListener('click', function(){
+  xform.setMode('scale');
+  ['btn-w','btn-e','btn-r'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  this.classList.add('active');
+  setMode('select');
+});
+
+document.getElementById('btn-snap').addEventListener('click', function(){
+  snapToGrid = !snapToGrid;
+  this.classList.toggle('snap-on', snapToGrid);
+  this.textContent = snapToGrid ? '⊞ Snap Grid' : '⬚ Sin Snap';
+});
+
+document.getElementById('btn-grid').addEventListener('click', function(){
+  showGrid = !showGrid;
+  GRP.grid.visible = showGrid;
+  this.classList.toggle('active', showGrid);
+});
+
+document.getElementById('btn-undo').addEventListener('click', undo);
+
+document.getElementById('btn-clear').addEventListener('click', () => {
+  if(!confirm('¿Eliminar todos los objetos colocados?')) return;
+  while(GRP.placed.children.length) GRP.placed.remove(GRP.placed.children[0]);
+  placedList.length = 0;
+  undoStack.length  = 0;
+  deselect(); refreshObjList();
+});
+
+document.getElementById('btn-export').addEventListener('click', () => {
+  const data = placedList.map(m => ({
+    name: m.name,
+    type: m.userData.def?.type,
+    tileId: m.userData.def?.id,
+    w: m.userData.def?.w,
+    d: m.userData.def?.d,
+    position: { x:+m.position.x.toFixed(2), y:+m.position.y.toFixed(2), z:+m.position.z.toFixed(2) },
+    rotation: { y:+THREE.MathUtils.radToDeg(m.rotation.y).toFixed(1) },
+    scale:    { x:+m.scale.x.toFixed(2), y:+m.scale.y.toFixed(2), z:+m.scale.z.toFixed(2) },
+  }));
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+  const a    = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'campus_layout.json';
+  a.click();
+});
+
+document.getElementById('btn-iso').addEventListener('click', () => { setIsoCam(); orbit.target.set(0,0,0); orbit.update(); });
+document.getElementById('btn-top').addEventListener('click', () => {
+  camera.position.set(0,180,.01); camera.lookAt(0,0,0);
+  orbit.target.set(0,0,0); orbit.update();
+});
+
+// Right panel buttons
+document.getElementById('pr-del').addEventListener('click', () => { if(selectedObj) removeObj(selectedObj); });
+document.getElementById('pr-dup').addEventListener('click', () => {
+  if(!selectedObj) return;
+  const def = selectedObj.userData.def;
+  if(!def) return;
+  const copy = buildTile(def);
+  objCounter++;
+  copy.name = `${def.id}_${objCounter}`;
+  copy.position.copy(selectedObj.position).addScalar(2);
+  copy.rotation.copy(selectedObj.rotation);
+  copy.scale.copy(selectedObj.scale);
+  copy.userData.def = def;
+  GRP.placed.add(copy);
+  placedList.push(copy);
+  undoStack.push({ type:'add', mesh:copy });
+  selectObj(copy);
+  refreshObjList();
+});
+
+// ══════════════════════════════════════════════════════
+//  KEYBOARD
+// ══════════════════════════════════════════════════════
+window.addEventListener('keydown', e => {
+  if(e.target.tagName==='INPUT') return;
+  switch(e.key){
+    case 's': case 'S': setMode('select'); break;
+    case 'p': case 'P': setMode('place');  break;
+    case 'w': case 'W': xform.setMode('translate'); setMode('select'); document.getElementById('btn-w').click(); break;
+    case 'e': case 'E': xform.setMode('rotate');    setMode('select'); document.getElementById('btn-e').click(); break;
+    case 'r': case 'R': xform.setMode('scale');     setMode('select'); document.getElementById('btn-r').click(); break;
+    case 'Delete': case 'Backspace': if(selectedObj && e.target.tagName!=='INPUT') removeObj(selectedObj); break;
+    case 'z': if(e.ctrlKey||e.metaKey){ e.preventDefault(); undo(); } break;
+    case 'Escape':
+      if(editorMode==='place'){ setActiveTile(null); document.querySelectorAll('.tile-btn').forEach(b=>b.classList.remove('active','grass')); }
+      else deselect();
+      break;
+  }
+});
+
+// ══════════════════════════════════════════════════════
 //  RESIZE
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 window.addEventListener('resize', () => {
-  aspect = container.clientWidth / container.clientHeight;
-  renderer.setSize(container.clientWidth, container.clientHeight);
-  camera.left   = -CAM_SIZE * aspect;
-  camera.right  =  CAM_SIZE * aspect;
-  camera.top    =  CAM_SIZE;
-  camera.bottom = -CAM_SIZE;
+  asp = wrap.clientWidth / wrap.clientHeight;
+  renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+  camera.left   = -CAM_SIZE*asp; camera.right = CAM_SIZE*asp;
+  camera.top    =  CAM_SIZE;     camera.bottom= -CAM_SIZE;
   camera.updateProjectionMatrix();
 });
 
-// ══════════════════════════════════════════════════════════════════
-//  INIT & LOOP
-// ══════════════════════════════════════════════════════════════════
-setupLighting();
-buildMap();
-
-(function animate() {
-  requestAnimationFrame(animate);
-  controls.update();
+// ══════════════════════════════════════════════════════
+//  ANIMATE
+// ══════════════════════════════════════════════════════
+(function loop() {
+  requestAnimationFrame(loop);
+  orbit.update();
   renderer.render(scene, camera);
 })();
 
-// ══════════════════════════════════════════════════════════════════
-//  PUBLIC API — window.CAMPUS_MAP
-//  Expuesto para uso en Etapa 2+
-// ══════════════════════════════════════════════════════════════════
-window.CAMPUS_MAP = {
-  scene, camera, controls, renderer,
-  groups: G,
-  materials: M,
-  createRoad, createSidewalk, createCurb,
-  createGrassSlot, createBuildingSlot, createStep,
-
-  /**
-   * addBuilding(id, x, z, w, d, h, opts)
-   * Agrega un edificio 3D al grupo buildings.
-   */
-  addBuilding(id, x, z, w, d, h, opts = {}) {
-    const g = new THREE.Group();
-    g.name = id;
-    const mat = new THREE.MeshLambertMaterial({ color: opts.color || 0xe8e0d0 });
-    const body = box(w, h, d, mat);
-    g.add(body);
-    g.position.set(x, LAYER_H.buildingBase, z);
-    G.buildings.add(g);
-    return g;
-  },
-
-  /** addVegetation(id, x, z, opts) — Etapa 2 */
-  addVegetation(id, x, z, opts = {}) {
-    console.log(`[CAMPUS_MAP] addVegetation: ${id} @ (${x}, ${z})`, opts);
-  },
-
-  /** addCharacter(id, x, z, opts) — Etapa 3 */
-  addCharacter(id, x, z, opts = {}) {
-    console.log(`[CAMPUS_MAP] addCharacter: ${id} @ (${x}, ${z})`, opts);
-  },
-
-  /** addProp(id, x, z, opts) — Etapa 2 */
-  addProp(id, x, z, opts = {}) {
-    console.log(`[CAMPUS_MAP] addProp: ${id} @ (${x}, ${z})`, opts);
-  },
-
-  removeElement(name) {
-    scene.traverse(obj => { if (obj.name === name && obj.parent) obj.parent.remove(obj); });
-  },
-
-  getSlot(name) {
-    let found = null;
-    scene.traverse(obj => { if (obj.name === name) found = obj; });
-    return found;
-  }
-};
-
-console.log('%c UNLaM Campus 3D · Etapa 1 ✓ ', 'background:#3a5a8a;color:#fff;font-weight:bold;padding:4px 8px;border-radius:4px;');
-console.log('API disponible en: window.CAMPUS_MAP');
-console.log('Grupos:', Object.keys(G).join(', '));
+// Default mode
+setMode('place');
+console.log('%c UNLaM Campus 3D · Editor listo ✓ ', 'background:#3a5a8a;color:#fff;font-weight:bold;padding:4px 10px;border-radius:4px;');
 </script>
 </body>
 </html>
