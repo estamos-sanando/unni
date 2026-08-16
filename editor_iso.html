@@ -439,7 +439,7 @@ TILE_DEFS.forEach(d => { SPRITES[d.id] = d.gen(); });
 // ══════════════════════════════════════════════════════════════════════
 //  GRID STATE
 // ══════════════════════════════════════════════════════════════════════
-let grid = Array.from({length:ROWS}, ()=>Array(COLS).fill(null));
+let grid = Array.from({length:ROWS}, ()=>Array(COLS).fill('concrete'));
 
 const undoStack = [], redoStack = [];
 
