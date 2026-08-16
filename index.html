@@ -1,457 +1,1035 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>UNLaM – Campus Isométrico</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>UNLaM – Editor Isométrico</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&display=swap" rel="stylesheet"/>
   <style>
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    /* ─────────────────────────────────────
+       RESET & BASE
+    ───────────────────────────────────── */
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --green-dark:  #0d2b0d;
+      --green-mid:   #1a5c1a;
+      --green-hi:    #2ecc71;
+      --green-pale:  #7fff7f;
+      --bg-panel:    #111a11;
+      --bg-card:     #1a2e1a;
+      --bg-card-ho:  #1a461a;
+      --border:      rgba(46,204,113,.2);
+      --border-hi:   #2ecc71;
+      --text:        #e0e0e0;
+      --text-dim:    #888;
+      --topbar-h:    52px;
+    }
+
+    html, body { height:100%; width:100%; overflow:hidden; }
 
     body {
-      background: #1a2e1a;
-      font-family: 'Outfit', sans-serif;
-      overflow: hidden;
-      height: 100vh;
-      width: 100vw;
-      user-select: none;
+      font-family:'Outfit', sans-serif;
+      background:#0a140a;
+      color:var(--text);
+      display:flex;
+      flex-direction:column;
     }
 
-    /* ── HEADER ── */
-    #header {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
-      height: 56px;
-      background: linear-gradient(90deg, #0d2b0d 0%, #1a5c1a 50%, #0d2b0d 100%);
-      border-bottom: 2px solid #2e8b2e;
-      display: flex; align-items: center; gap: 14px; padding: 0 20px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    /* ─────────────────────────────────────
+       TOPBAR
+    ───────────────────────────────────── */
+    #topbar {
+      height:var(--topbar-h);
+      background:linear-gradient(90deg,var(--green-dark),var(--green-mid),var(--green-dark));
+      border-bottom:2px solid var(--green-hi);
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:0 12px;
+      flex-shrink:0;
+      z-index:400;
+      box-shadow:0 3px 20px rgba(0,0,0,.7);
     }
+
     .logo {
-      width: 38px; height: 38px;
-      background: radial-gradient(circle, #2ecc71, #0d7a3a);
-      border-radius: 50%;
-      border: 2px solid #7fff7f;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 900; font-size: 18px; color: #fff;
-      flex-shrink: 0;
-      box-shadow: 0 0 12px rgba(46,204,113,0.5);
-    }
-    .header-text h1 {
-      font-size: 14px; font-weight: 700; color: #fff;
-      text-transform: uppercase; letter-spacing: .06em;
-    }
-    .header-text p { font-size: 11px; color: #7fff7f; opacity: .85; }
-
-    .header-controls {
-      margin-left: auto;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .ctrl-btn {
-      background: rgba(255,255,255,.1);
-      border: 1px solid rgba(255,255,255,.25);
-      color: #fff; border-radius: 6px; padding: 5px 13px;
-      cursor: pointer; font-size: 13px; font-family: 'Outfit', sans-serif;
-      transition: background .15s, transform .1s;
-    }
-    .ctrl-btn:hover { background: rgba(255,255,255,.22); }
-    .ctrl-btn:active { transform: scale(.96); }
-    #zoom-label {
-      font-size: 13px; color: #afffaf; min-width: 46px;
-      text-align: center; font-weight: 600;
-    }
-    .hint-badge {
-      background: rgba(46,204,113,.15);
-      border: 1px solid rgba(46,204,113,.35);
-      color: #7fff7f; border-radius: 20px;
-      padding: 4px 12px; font-size: 11px;
+      width:32px; height:32px; flex-shrink:0;
+      background:radial-gradient(circle,var(--green-hi),#0d7a3a);
+      border-radius:50%; border:2px solid var(--green-pale);
+      display:flex; align-items:center; justify-content:center;
+      font-weight:900; font-size:15px; color:#fff;
+      box-shadow:0 0 10px rgba(46,204,113,.45);
     }
 
-    /* ── CANVAS AREA ── */
-    #viewport {
-      position: fixed;
-      top: 56px; left: 0; right: 0; bottom: 0;
-      overflow: hidden;
-      cursor: grab;
-      background: radial-gradient(ellipse 80% 60% at 50% 60%, #1e3d1e 0%, #0e1e0e 100%);
-    }
-    #viewport.dragging { cursor: grabbing; }
+    .tb-title { line-height:1.2; }
+    .tb-title strong { font-size:12px; font-weight:700; color:#fff; text-transform:uppercase; letter-spacing:.05em; display:block; }
+    .tb-title small  { font-size:9px;  color:var(--green-pale); opacity:.85; }
 
-    /* ── SCENE ── */
-    #scene {
-      position: absolute;
-      transform-origin: 0 0;
-      will-change: transform;
+    /* hide subtitle on small */
+    @media(max-width:600px){ .tb-title small{ display:none; } }
+
+    .tb-sep { width:1px; height:28px; background:rgba(255,255,255,.12); flex-shrink:0; margin:0 2px; }
+
+    .tb-btn {
+      background:rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.18);
+      color:#fff; border-radius:6px; padding:5px 10px;
+      cursor:pointer; font-size:12px; font-family:'Outfit',sans-serif;
+      display:flex; align-items:center; gap:4px;
+      transition:background .14s, transform .1s;
+      white-space:nowrap; flex-shrink:0;
+    }
+    .tb-btn:hover  { background:rgba(255,255,255,.18); }
+    .tb-btn:active { transform:scale(.95); }
+    .tb-btn.active { background:rgba(46,204,113,.22); border-color:var(--green-hi); color:var(--green-pale); }
+    .tb-btn.danger { border-color:rgba(231,76,60,.4); color:#e74c3c; }
+    .tb-btn.success{ border-color:rgba(46,204,113,.45); color:var(--green-hi); }
+
+    /* hide text label on small, show only icon */
+    .tb-btn .tb-lbl { display:inline; }
+    @media(max-width:780px){ .tb-btn .tb-lbl{ display:none; } }
+
+    #zoom-lbl { font-size:12px; color:var(--green-pale); min-width:38px; text-align:center; font-weight:700; flex-shrink:0; }
+
+    .tb-right { margin-left:auto; display:flex; align-items:center; gap:6px; }
+
+    /* Mode badge — hidden on mobile */
+    #mode-badge {
+      background:rgba(46,204,113,.12); border:1px solid rgba(46,204,113,.3);
+      color:var(--green-pale); border-radius:20px; padding:4px 10px;
+      font-size:10px; font-weight:600; white-space:nowrap;
+    }
+    @media(max-width:860px){ #mode-badge{ display:none; } }
+
+    /* panel toggle buttons always visible */
+    .panel-toggle {
+      background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18);
+      color:#fff; border-radius:6px; padding:5px 9px;
+      cursor:pointer; font-size:14px; display:none; /* shown via media query */
+      align-items:center; justify-content:center;
+      transition:background .14s;
+    }
+    .panel-toggle.active { background:rgba(46,204,113,.22); border-color:var(--green-hi); }
+    .panel-toggle:hover  { background:rgba(255,255,255,.18); }
+    @media(max-width:1100px){ .panel-toggle{ display:flex; } }
+
+    /* ─────────────────────────────────────
+       APP LAYOUT
+    ───────────────────────────────────── */
+    #app {
+      flex:1; display:flex; overflow:hidden; position:relative;
     }
 
-    /* ── SPRITES ── */
-    .tile {
-      position: absolute;
-      image-rendering: pixelated;
-      image-rendering: crisp-edges;
-      pointer-events: none;
+    /* ─────────────────────────────────────
+       LEFT PANEL — ASSET LIBRARY
+    ───────────────────────────────────── */
+    #panel-left {
+      width:210px; flex-shrink:0;
+      background:var(--bg-panel);
+      border-right:1px solid var(--border);
+      display:flex; flex-direction:column;
+      overflow:hidden; z-index:300;
+      transition:width .25s ease, transform .25s ease, opacity .25s;
     }
-    .building {
-      position: absolute;
-      image-rendering: pixelated;
-      image-rendering: crisp-edges;
-      cursor: pointer;
-      transition: filter .15s;
+    #panel-left.collapsed {
+      width:0; opacity:0; pointer-events:none; overflow:hidden;
     }
-    .building:hover { filter: brightness(1.12) drop-shadow(0 0 8px rgba(46,204,113,.7)); }
 
-    /* ── TOOLTIP ── */
-    #tooltip {
-      position: fixed;
-      background: rgba(10,20,10,.92);
-      border: 1px solid #2e8b2e;
-      color: #fff; border-radius: 8px;
-      padding: 8px 14px; font-size: 13px; font-weight: 600;
-      pointer-events: none;
-      opacity: 0; transition: opacity .18s;
-      z-index: 2000;
-      backdrop-filter: blur(8px);
-      box-shadow: 0 4px 20px rgba(0,0,0,.5);
+    /* On small screens: drawer overlay */
+    @media(max-width:1100px) {
+      #panel-left {
+        position:absolute; top:0; left:0; bottom:0;
+        width:220px;
+        box-shadow:4px 0 20px rgba(0,0,0,.5);
+        transform:translateX(0);
+        transition:transform .25s ease, opacity .25s;
+      }
+      #panel-left.collapsed {
+        width:220px; /* keep width so animation works */
+        transform:translateX(-100%);
+        opacity:0; pointer-events:none;
+      }
     }
-    #tooltip.visible { opacity: 1; }
-    #tooltip .tt-sub { font-size: 11px; color: #7fff7f; font-weight: 400; margin-top: 2px; }
 
-    /* ── LEGEND ── */
-    #legend {
-      position: fixed; bottom: 16px; right: 16px;
-      background: rgba(8,16,8,.88);
-      border: 1px solid rgba(46,204,113,.3);
-      color: #fff; border-radius: 12px;
-      padding: 14px 18px; font-size: 12px; line-height: 2;
-      z-index: 1000; backdrop-filter: blur(10px);
-      min-width: 220px;
-      box-shadow: 0 8px 30px rgba(0,0,0,.5);
+    .panel-hdr {
+      padding:10px 12px 7px;
+      font-size:10px; font-weight:700; color:var(--green-pale);
+      text-transform:uppercase; letter-spacing:.08em;
+      border-bottom:1px solid var(--border); flex-shrink:0;
+      display:flex; align-items:center; justify-content:space-between;
     }
-    #legend .leg-title {
-      font-weight: 700; font-size: 13px; color: #2ecc71;
-      margin-bottom: 4px; display: flex; align-items: center; gap: 6px;
+    .panel-hdr .close-btn {
+      cursor:pointer; color:var(--text-dim); font-size:16px; line-height:1;
+      transition:color .14s;
     }
-    .leg-item { display: flex; align-items: center; gap: 8px; }
-    .leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    #legend hr { border-color: rgba(255,255,255,.1); margin: 6px 0; }
-    #legend .leg-hint { color: #888; font-size: 10px; }
+    .panel-hdr .close-btn:hover { color:#e74c3c; }
+    /* hide internal close on desktop */
+    @media(min-width:1101px){ .panel-hdr .close-btn{ display:none; } }
 
-    /* ── STUDENTS ── */
-    .student { position: absolute; pointer-events: none; }
-    @keyframes walkBob  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
-    @keyframes walkBob2 { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
-    .sw1 { animation: walkBob  .50s ease-in-out infinite; }
-    .sw2 { animation: walkBob2 .55s ease-in-out infinite .18s; }
-    .sw3 { animation: walkBob2 .60s ease-in-out infinite .33s; }
-
-    /* compass */
-    #compass {
-      position: fixed; top: 70px; right: 16px;
-      width: 52px; height: 52px;
-      background: rgba(8,16,8,.88);
-      border: 1px solid rgba(46,204,113,.3);
-      border-radius: 50%;
-      z-index: 1000;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 24px;
+    /* Filter chips */
+    #filter-row {
+      padding:7px 8px; display:flex; flex-wrap:wrap; gap:4px;
+      border-bottom:1px solid var(--border); flex-shrink:0;
     }
+    .chip {
+      background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+      color:var(--text-dim); border-radius:12px; padding:2px 8px;
+      font-size:9px; cursor:pointer; transition:all .14s;
+    }
+    .chip:hover, .chip.on {
+      background:rgba(46,204,113,.18); border-color:var(--green-hi); color:var(--green-pale);
+    }
+
+    /* Asset grid */
+    #asset-grid {
+      flex:1; overflow-y:auto; padding:8px;
+      display:grid; grid-template-columns:repeat(2,1fr); gap:5px;
+      align-content:start;
+    }
+    #asset-grid::-webkit-scrollbar{ width:4px; }
+    #asset-grid::-webkit-scrollbar-thumb{ background:#2a4a2a; border-radius:2px; }
+
+    .ac {
+      background:var(--bg-card); border:2px solid transparent;
+      border-radius:8px; padding:6px; cursor:pointer;
+      display:flex; flex-direction:column; align-items:center; gap:3px;
+      transition:all .14s;
+    }
+    .ac:hover { border-color:var(--green-hi); background:var(--bg-card-ho); }
+    .ac.sel   { border-color:var(--green-pale); background:#1a5c1a; box-shadow:0 0 8px rgba(46,204,113,.35); }
+    .ac img   { width:100%; height:54px; object-fit:contain; image-rendering:pixelated; }
+    .ac-lbl   { font-size:8px; color:var(--text-dim); text-align:center; line-height:1.2; }
+
+    /* ─────────────────────────────────────
+       RIGHT PANEL — PROPERTIES
+    ───────────────────────────────────── */
+    #panel-right {
+      width:175px; flex-shrink:0;
+      background:var(--bg-panel);
+      border-left:1px solid var(--border);
+      display:flex; flex-direction:column;
+      overflow:hidden; z-index:300;
+      transition:width .25s ease, transform .25s ease, opacity .25s;
+      padding:0;
+    }
+    #panel-right.collapsed { width:0; opacity:0; pointer-events:none; }
+
+    @media(max-width:1100px) {
+      #panel-right {
+        position:absolute; top:0; right:0; bottom:0;
+        width:195px;
+        box-shadow:-4px 0 20px rgba(0,0,0,.5);
+        transition:transform .25s ease, opacity .25s;
+      }
+      #panel-right.collapsed {
+        width:195px;
+        transform:translateX(100%);
+        opacity:0; pointer-events:none;
+      }
+    }
+
+    .pr-inner { padding:10px; display:flex; flex-direction:column; gap:8px; height:100%; overflow-y:auto; }
+    .pr-inner::-webkit-scrollbar{ width:4px; }
+    .pr-inner::-webkit-scrollbar-thumb{ background:#2a4a2a; border-radius:2px; }
+
+    .pr-hdr {
+      font-size:10px; font-weight:700; color:var(--green-pale);
+      text-transform:uppercase; letter-spacing:.07em;
+      border-bottom:1px solid var(--border);
+      padding-bottom:6px; margin-bottom:2px;
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .pr-hdr .close-btn { cursor:pointer; color:var(--text-dim); font-size:16px; }
+    .pr-hdr .close-btn:hover { color:#e74c3c; }
+    @media(min-width:1101px){ .pr-hdr .close-btn{ display:none; } }
+
+    .prop-row { display:flex; flex-direction:column; gap:3px; }
+    .prop-row label { font-size:10px; color:var(--text-dim); display:flex; justify-content:space-between; }
+    .prop-val { color:var(--green-pale); font-weight:700; }
+    input[type=range] { width:100%; accent-color:var(--green-hi); cursor:pointer; }
+
+    #sel-name { font-size:11px; color:var(--green-pale); font-weight:600; }
+
+    .pr-btn {
+      background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14);
+      color:#fff; border-radius:6px; padding:5px 8px; cursor:pointer;
+      font-size:10px; font-family:'Outfit',sans-serif; text-align:center;
+      transition:background .14s;
+    }
+    .pr-btn:hover   { background:rgba(255,255,255,.15); }
+    .pr-btn.danger  { border-color:rgba(231,76,60,.35); color:#e74c3c; }
+    .pr-btn.danger:hover  { background:rgba(231,76,60,.12); }
+    .pr-btn.success { border-color:rgba(46,204,113,.35); color:var(--green-hi); }
+    .pr-btn.success:hover { background:rgba(46,204,113,.12); }
+
+    .pr-divider { height:1px; background:var(--border); }
+
+    #placed-list { display:flex; flex-direction:column; gap:4px; }
+    .pi {
+      background:var(--bg-card); border:1px solid var(--border);
+      border-radius:6px; padding:5px 8px;
+      font-size:10px; color:#ccc; cursor:pointer;
+      display:flex; align-items:center; justify-content:space-between;
+      transition:all .12s;
+    }
+    .pi:hover { border-color:var(--green-hi); color:#fff; }
+    .pi.sel   { border-color:var(--green-pale); background:#1a5c1a; }
+    .pi-del   { color:#e74c3c; cursor:pointer; font-size:15px; padding:0 2px; flex-shrink:0; }
+    .pi-del:hover { color:#ff6b6b; }
+
+    /* ─────────────────────────────────────
+       VIEWPORT
+    ───────────────────────────────────── */
+    #vp {
+      flex:1; overflow:hidden; position:relative;
+      cursor:crosshair;
+      background:radial-gradient(ellipse 80% 70% at 50% 58%, #1a3520 0%, #090f09 100%);
+      touch-action:none; /* prevent browser scroll on touch */
+    }
+    #vp.pan-mode { cursor:grab; }
+    #vp.pan-mode.panning { cursor:grabbing; }
+
+    /* Scene container */
+    #scene { position:absolute; transform-origin:0 0; will-change:transform; }
+
+    /* Grid SVG */
+    #grid-svg { position:absolute; top:0; left:0; pointer-events:none; z-index:3; }
+    .gl { stroke:rgba(46,204,113,.13); stroke-width:1; }
+
+    /* Cell hover highlight */
+    #cell-hi {
+      position:absolute; pointer-events:none; z-index:5;
+      clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%);
+      background:rgba(46,204,113,.22);
+      display:none;
+    }
+
+    /* Sprite wrappers */
+    .sw {
+      position:absolute; cursor:move;
+    }
+    .sw img {
+      display:block; pointer-events:none;
+      image-rendering:pixelated; image-rendering:crisp-edges;
+    }
+    .sw-ring {
+      display:none; position:absolute; inset:-3px;
+      border:2px dashed var(--green-pale); border-radius:4px;
+      pointer-events:none; animation:dash .8s linear infinite;
+    }
+    @keyframes dash{ to{ stroke-dashoffset:-20; } }
+    .sw.selected .sw-ring { display:block; }
+    .sw-lbl {
+      position:absolute; bottom:calc(100% + 2px); left:50%; transform:translateX(-50%);
+      background:rgba(0,0,0,.78); color:#fff; font-size:8px;
+      padding:2px 5px; border-radius:3px; white-space:nowrap;
+      pointer-events:none; display:none;
+    }
+    .sw:hover .sw-lbl { display:block; }
+
+    /* ─────────────────────────────────────
+       FLOATING TOOLBAR (mobile)
+    ───────────────────────────────────── */
+    #fab-bar {
+      display:none;
+      position:absolute; bottom:60px; left:50%; transform:translateX(-50%);
+      background:rgba(10,18,10,.9); border:1px solid var(--border);
+      border-radius:30px; padding:6px 12px; gap:8px;
+      backdrop-filter:blur(10px); z-index:300;
+    }
+    @media(max-width:600px){ #fab-bar{ display:flex; } }
+    .fab { font-size:20px; cursor:pointer; padding:4px; }
+
+    /* ─────────────────────────────────────
+       HINT BAR
+    ───────────────────────────────────── */
+    #hint-bar {
+      position:absolute; bottom:10px; left:50%; transform:translateX(-50%);
+      background:rgba(0,0,0,.65); border:1px solid rgba(46,204,113,.15);
+      color:var(--text-dim); font-size:9px; border-radius:20px; padding:4px 14px;
+      pointer-events:none; z-index:200;
+      display:flex; gap:10px; white-space:nowrap;
+      backdrop-filter:blur(6px);
+    }
+    .hk { color:var(--green-pale); font-weight:600; }
+    @media(max-width:600px){ #hint-bar{ display:none; } }
+
+    /* ─────────────────────────────────────
+       TOOLTIP
+    ───────────────────────────────────── */
+    #tip {
+      position:fixed;
+      background:rgba(8,18,8,.93); border:1px solid var(--border-hi);
+      color:#fff; border-radius:8px; padding:6px 12px;
+      font-size:12px; font-weight:600;
+      pointer-events:none; opacity:0; transition:opacity .15s;
+      z-index:9000; backdrop-filter:blur(8px);
+    }
+    #tip.on { opacity:1; }
+    #tip .ts { font-size:10px; color:var(--green-pale); font-weight:400; margin-top:1px; }
+
+    /* ─────────────────────────────────────
+       EXPORT MODAL
+    ───────────────────────────────────── */
+    #modal {
+      display:none; position:fixed; inset:0;
+      background:rgba(0,0,0,.82); z-index:9999;
+      align-items:center; justify-content:center; padding:16px;
+    }
+    #modal.show { display:flex; }
+    #modal-box {
+      background:#111a11; border:1px solid var(--green-hi);
+      border-radius:14px; padding:20px; width:min(560px,100%);
+    }
+    #modal-box h2 { color:var(--green-pale); font-size:14px; margin-bottom:8px; }
+    #modal-box textarea {
+      width:100%; height:180px; background:#0a140a;
+      border:1px solid var(--border); color:#afffaf;
+      font-family:monospace; font-size:11px; border-radius:6px; padding:8px; resize:none;
+    }
+    .modal-btns { display:flex; gap:8px; margin-top:10px; }
+
+    /* ─────────────────────────────────────
+       OVERLAY BACKDROP (mobile panel close)
+    ───────────────────────────────────── */
+    #backdrop {
+      display:none; position:absolute; inset:0; z-index:290;
+      background:rgba(0,0,0,.45);
+    }
+    #backdrop.show { display:block; }
   </style>
 </head>
 <body>
 
-<div id="header">
+<!-- ══════════════════ TOPBAR ══════════════════ -->
+<div id="topbar">
+  <!-- Panel toggles (visible on small screens) -->
+  <button class="panel-toggle" id="btn-pl" onclick="toggleLeft()" title="Assets">📦</button>
+
   <div class="logo">U</div>
-  <div class="header-text">
-    <h1>Universidad Nacional de La Matanza</h1>
-    <p>Campus Virtual – Vista Isométrica</p>
+  <div class="tb-title">
+    <strong>UNLaM Campus Editor</strong>
+    <small>Modo Editor Isométrico</small>
   </div>
-  <div class="header-controls">
-    <span class="hint-badge">🖱 Arrastrá para mover · Scroll para zoom</span>
-    <button class="ctrl-btn" onclick="zoomBy(-0.15)">−</button>
-    <span id="zoom-label">100%</span>
-    <button class="ctrl-btn" onclick="zoomBy(+0.15)">+</button>
-    <button class="ctrl-btn" onclick="resetView()">⌂ Reset</button>
+
+  <div class="tb-sep"></div>
+
+  <button class="tb-btn active" id="btn-grid" onclick="toggleGrid()" title="Mostrar/ocultar grilla">
+    📐 <span class="tb-lbl">Grilla</span>
+  </button>
+  <button class="tb-btn" id="btn-pan" onclick="togglePan()" title="Mover vista">
+    ✋ <span class="tb-lbl">Mover</span>
+  </button>
+
+  <div class="tb-sep"></div>
+
+  <button class="tb-btn" onclick="zoomBy(-0.12)" title="Alejar">−</button>
+  <span id="zoom-lbl">100%</span>
+  <button class="tb-btn" onclick="zoomBy(+0.12)" title="Acercar">+</button>
+  <button class="tb-btn" onclick="resetView()" title="Reset vista">⌂</button>
+
+  <div class="tb-sep"></div>
+
+  <span id="mode-badge">🖱 Click asset → click grilla para colocar</span>
+
+  <div class="tb-right">
+    <button class="tb-btn success" onclick="exportLayout()" title="Exportar">
+      💾 <span class="tb-lbl">Exportar</span>
+    </button>
+    <button class="tb-btn danger" onclick="clearAll()" title="Limpiar todo">
+      🗑 <span class="tb-lbl">Limpiar</span>
+    </button>
+    <!-- Panel toggle right (small screens) -->
+    <button class="panel-toggle" id="btn-pr" onclick="toggleRight()" title="Propiedades">⚙️</button>
   </div>
 </div>
 
-<div id="viewport">
-  <div id="scene"></div>
+<!-- ══════════════════ APP ══════════════════ -->
+<div id="app">
+
+  <!-- BACKDROP for overlay panels -->
+  <div id="backdrop" onclick="closeAllPanels()"></div>
+
+  <!-- ── LEFT PANEL ── -->
+  <div id="panel-left">
+    <div class="panel-hdr">
+      📦 Assets
+      <span class="close-btn" onclick="toggleLeft()">×</span>
+    </div>
+    <div id="filter-row">
+      <span class="chip on" onclick="filterCat(this,'all')">Todos</span>
+      <span class="chip" onclick="filterCat(this,'edificio')">Edificios</span>
+      <span class="chip" onclick="filterCat(this,'terreno')">Terreno</span>
+      <span class="chip" onclick="filterCat(this,'vegeta')">Plantas</span>
+      <span class="chip" onclick="filterCat(this,'mobil')">Mob.</span>
+    </div>
+    <div id="asset-grid"></div>
+  </div>
+
+  <!-- ── VIEWPORT ── -->
+  <div id="vp">
+    <div id="scene">
+      <svg id="grid-svg"></svg>
+      <div id="cell-hi"></div>
+    </div>
+
+    <!-- Hint bar -->
+    <div id="hint-bar">
+      <span><span class="hk">Asset</span>→seleccionar</span>
+      <span><span class="hk">Click grilla</span>→colocar</span>
+      <span><span class="hk">Arrastrar</span>→mover</span>
+      <span><span class="hk">Del</span>→borrar</span>
+      <span><span class="hk">Scroll</span>→zoom</span>
+    </div>
+
+    <!-- FAB bar for mobile -->
+    <div id="fab-bar">
+      <span class="fab" onclick="toggleLeft()"   title="Assets">📦</span>
+      <span class="fab" onclick="togglePan()"   title="Mover">✋</span>
+      <span class="fab" onclick="zoomBy(.12)"   title="Acercar">🔍</span>
+      <span class="fab" onclick="zoomBy(-.12)"  title="Alejar">🔎</span>
+      <span class="fab" onclick="deleteSelected()" title="Borrar">🗑</span>
+      <span class="fab" onclick="exportLayout()" title="Exportar">💾</span>
+      <span class="fab" onclick="toggleRight()" title="Props">⚙️</span>
+    </div>
+  </div>
+
+  <!-- ── RIGHT PANEL ── -->
+  <div id="panel-right">
+    <div class="pr-inner">
+
+      <div class="pr-hdr">
+        Seleccionado
+        <span class="close-btn" onclick="toggleRight()">×</span>
+      </div>
+
+      <div id="sel-name" style="font-size:10px;color:var(--text-dim);">Nada seleccionado</div>
+
+      <div class="prop-row" id="row-scale" style="display:none">
+        <label>Escala <span class="prop-val" id="pv-scale">1.00</span></label>
+        <input type="range" id="sl-scale" min=".3" max="2.5" step=".05" value="1" oninput="onScale(this.value)"/>
+      </div>
+
+      <div class="prop-row" id="row-z" style="display:none">
+        <label>Z-offset <span class="prop-val" id="pv-z">0</span></label>
+        <input type="range" id="sl-z" min="-20" max="60" step="1" value="0" oninput="onZ(this.value)"/>
+      </div>
+
+      <div id="act-btns" style="display:none;display:none;flex-direction:column;gap:5px;">
+        <button class="pr-btn" onclick="duplicateSelected()">📋 Duplicar</button>
+        <button class="pr-btn danger" onclick="deleteSelected()">🗑 Eliminar</button>
+      </div>
+
+      <div class="pr-divider"></div>
+
+      <div class="pr-hdr" style="margin-top:4px;">
+        Colocados (<span id="count">0</span>)
+      </div>
+      <div id="placed-list"></div>
+
+      <div style="margin-top:auto;display:flex;flex-direction:column;gap:5px;padding-top:8px;">
+        <button class="pr-btn success" onclick="exportLayout()">💾 Exportar JSON</button>
+        <button class="pr-btn" onclick="importLayout()">📂 Importar JSON</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
-<div id="compass">🧭</div>
+<!-- TOOLTIP -->
+<div id="tip"><div id="tip-n"></div><div class="ts" id="tip-s"></div></div>
 
-<div id="tooltip">
-  <div id="tt-name"></div>
-  <div class="tt-sub" id="tt-sub"></div>
-</div>
-
-<div id="legend">
-  <div class="leg-title">Campus UNLaM</div>
-  <div class="leg-item"><span class="leg-dot" style="background:#e8c060"></span>Entrada Principal</div>
-  <div class="leg-item"><span class="leg-dot" style="background:#6a9fd8"></span>Biblioteca</div>
-  <div class="leg-item"><span class="leg-dot" style="background:#8bcf8b"></span>Polideportivo</div>
-  <div class="leg-item"><span class="leg-dot" style="background:#d87a6a"></span>Medios de Comunicación</div>
-  <div class="leg-item"><span class="leg-dot" style="background:#c88bd8"></span>Polo Tecnológico</div>
-  <div class="leg-item"><span class="leg-dot" style="background:#d8a86a"></span>Teatro Universidad</div>
-  <div class="leg-item"><span class="leg-dot" style="background:#6ad8d8"></span>Estudiantes</div>
-  <hr/>
-  <div class="leg-hint">Hover sobre edificios · Flechas o arrastrá para mover</div>
+<!-- EXPORT MODAL -->
+<div id="modal">
+  <div id="modal-box">
+    <h2>📋 Layout JSON — Compartí esto para finalizar el mapa</h2>
+    <textarea id="modal-ta" readonly></textarea>
+    <div class="modal-btns">
+      <button class="pr-btn success" onclick="copyExport()" style="flex:1;">📋 Copiar</button>
+      <button class="pr-btn" onclick="closeModal()" style="flex:1;">✕ Cerrar</button>
+    </div>
+  </div>
 </div>
 
 <script>
-// ═══════════════════════════════════════════════════════
-//  ISO GRID ENGINE
-// ═══════════════════════════════════════════════════════
-const TW = 134;   // tile diamond width
-const TH = 67;    // tile diamond height (TW/2)
+// ═══════════════════════════════════════════
+//  ASSET CATALOGUE
+// ═══════════════════════════════════════════
+const ASSETS=[
+  {id:'biblioteca', src:'biblioteca.png', lbl:'Biblioteca',          cat:'edificio', w:340,h:264,ax:.5,ay:.85},
+  {id:'gimnasio',   src:'gimnasio.png',   lbl:'Polideportivo',       cat:'edificio', w:370,h:292,ax:.5,ay:.88},
+  {id:'medios',     src:'medios.png',     lbl:'Medios Comunicación', cat:'edificio', w:305,h:262,ax:.5,ay:.85},
+  {id:'polo',       src:'polo.png',       lbl:'Polo Tecnológico',    cat:'edificio', w:315,h:242,ax:.5,ay:.85},
+  {id:'teatro',     src:'teatro.png',     lbl:'Teatro Universidad',  cat:'edificio', w:330,h:255,ax:.5,ay:.85},
+  {id:'puerta',     src:'puerta.png',     lbl:'Arco Entrada',        cat:'edificio', w:390,h:240,ax:.5,ay:.82},
+  {id:'cesped',     src:'cesped.png',     lbl:'Césped 1',   cat:'terreno',w:134,h:82, ax:.5,ay:.0},
+  {id:'cesped1',    src:'cesped1.png',    lbl:'Césped 2',   cat:'terreno',w:134,h:82, ax:.5,ay:.0},
+  {id:'cesped2',    src:'cesped2.png',    lbl:'Césped 3',   cat:'terreno',w:134,h:82, ax:.5,ay:.0},
+  {id:'piso1',      src:'piso1.png',      lbl:'Piso 1',     cat:'terreno',w:134,h:82, ax:.5,ay:.0},
+  {id:'piso2',      src:'piso2.png',      lbl:'Piso 2',     cat:'terreno',w:134,h:82, ax:.5,ay:.0},
+  {id:'piso3',      src:'piso3.png',      lbl:'Piso 3',     cat:'terreno',w:134,h:82, ax:.5,ay:.0},
+  {id:'piso4',      src:'piso4.png',      lbl:'Piso 4',     cat:'terreno',w:134,h:82, ax:.5,ay:.0},
+  {id:'piso5',      src:'piso5.png',      lbl:'Piso 5',     cat:'terreno',w:134,h:82, ax:.5,ay:.0},
+  {id:'piso6',      src:'piso6.png',      lbl:'Piso 6',     cat:'terreno',w:134,h:82, ax:.5,ay:.0},
+  {id:'pisolargo',  src:'pisolargo.png',  lbl:'Piso Largo', cat:'terreno',w:220,h:110,ax:.5,ay:.0},
+  {id:'pisopuerta', src:'pisopuerta.png', lbl:'Piso Puerta',cat:'terreno',w:200,h:110,ax:.5,ay:.0},
+  {id:'pisoycesped',src:'pisoycesped.png',lbl:'Piso+Césp',  cat:'terreno',w:134,h:88, ax:.5,ay:.0},
+  {id:'paredon',    src:'paredon.png',    lbl:'Paredón',    cat:'terreno',w:100,h:88, ax:.5,ay:.6},
+  {id:'arbol',   src:'arbol.png',   lbl:'Árbol 1', cat:'vegeta',w:64,h:105,ax:.5,ay:1},
+  {id:'arbol1',  src:'arbol1.png',  lbl:'Árbol 2', cat:'vegeta',w:66,h:107,ax:.5,ay:1},
+  {id:'arbol2',  src:'arbol2.png',  lbl:'Árbol 3', cat:'vegeta',w:72,h:94, ax:.5,ay:1},
+  {id:'arbol3',  src:'arbol3.png',  lbl:'Árbol 4', cat:'vegeta',w:68,h:102,ax:.5,ay:1},
+  {id:'arbol4',  src:'arbol4.png',  lbl:'Árbol 5', cat:'vegeta',w:66,h:100,ax:.5,ay:1},
+  {id:'arbol5',  src:'arbol5.png',  lbl:'Árbol 6', cat:'vegeta',w:64,h:100,ax:.5,ay:1},
+  {id:'palmera', src:'palmera.png', lbl:'Palmera 1',cat:'vegeta',w:72,h:132,ax:.5,ay:1},
+  {id:'palmera1',src:'palmera1.png',lbl:'Palmera 2',cat:'vegeta',w:68,h:126,ax:.5,ay:1},
+  {id:'palmera2',src:'palmera2.png',lbl:'Palmera 3',cat:'vegeta',w:72,h:124,ax:.5,ay:1},
+  {id:'palmera3',src:'palmera3.png',lbl:'Palmera 4',cat:'vegeta',w:68,h:122,ax:.5,ay:1},
+  {id:'palmera4',src:'palmera4.png',lbl:'Palmera 5',cat:'vegeta',w:64,h:114,ax:.5,ay:1},
+  {id:'palmera5',src:'palmera5.png',lbl:'Palmera 6',cat:'vegeta',w:70,h:120,ax:.5,ay:1},
+  {id:'arbusto', src:'arbusto.png', lbl:'Arbusto 1',cat:'vegeta',w:55,h:50, ax:.5,ay:1},
+  {id:'arbusto1',src:'arbusto1.png',lbl:'Arbusto 2',cat:'vegeta',w:48,h:42, ax:.5,ay:1},
+  {id:'arbusto2',src:'arbusto2.png',lbl:'Arbusto 3',cat:'vegeta',w:55,h:50, ax:.5,ay:1},
+  {id:'arbusto3',src:'arbusto3.png',lbl:'Arbusto 4',cat:'vegeta',w:52,h:46, ax:.5,ay:1},
+  {id:'arbusto4',src:'arbusto4.png',lbl:'Arbusto 5',cat:'vegeta',w:42,h:38, ax:.5,ay:1},
+  {id:'arbusto5',src:'arbusto5.png',lbl:'Arbusto 6',cat:'vegeta',w:52,h:46, ax:.5,ay:1},
+  {id:'arbusto6',src:'arbusto6.png',lbl:'Arbusto 7',cat:'vegeta',w:46,h:40, ax:.5,ay:1},
+  {id:'maceta',  src:'maceta.png',  lbl:'Maceta 1', cat:'vegeta',w:110,h:100,ax:.5,ay:1},
+  {id:'maceta1', src:'maceta1.png', lbl:'Maceta 2', cat:'vegeta',w:106,h:96, ax:.5,ay:1},
+  {id:'banco',     src:'banco.png',    lbl:'Banco 1',   cat:'mobil',w:74,h:68,ax:.5,ay:1},
+  {id:'banco1',    src:'banco1.png',   lbl:'Banco 2',   cat:'mobil',w:72,h:66,ax:.5,ay:1},
+  {id:'banco2',    src:'banco2.png',   lbl:'Banco 3',   cat:'mobil',w:62,h:58,ax:.5,ay:1},
+  {id:'basurero',  src:'basurero.png', lbl:'Papelera 1',cat:'mobil',w:46,h:68,ax:.5,ay:1},
+  {id:'basurero1', src:'basurero1.png',lbl:'Papelera 2',cat:'mobil',w:46,h:66,ax:.5,ay:1},
+];
 
-function iso(col, row) {
-  return {
-    x: (col - row) * (TW / 2),
-    y: (col + row) * (TH / 2)
-  };
+// ═══════════════════════════════════════════
+//  ISO GRID
+// ═══════════════════════════════════════════
+const TW=134, TH=67, COLS=16, ROWS=16;
+const OX=COLS*(TW/2)+100, OY=100;
+
+function isoXY(c,r){ return { x:(c-r)*(TW/2)+OX, y:(c+r)*(TH/2)+OY }; }
+function screenToCell(sx,sy){
+  const rx=sx-OX, ry=sy-OY;
+  return { col:Math.round((rx/(TW/2)+ry/(TH/2))/2), row:Math.round((ry/(TH/2)-rx/(TW/2))/2) };
 }
 
-const COLS = 14;
-const ROWS = 11;
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+let placed=[]; let selUid=null; let picked=null;
+let panMode=false; let showGrid=true;
+let sc=1, px=0, py=0;
+let panning=false; let plx=0, ply=0;
+let dragSpr=null;
+let uid=0;
+let catFilter='all';
+// touch tracking
+let touch1=null, touch2=null, pinchDist0=null, pinchSc0=null;
 
-// 'g' = grass, 'p' = path/concrete
-const GRID = [
-  ['g','g','g','g','g','g','g','g','g','g','g','g','g','g'],
-  ['g','g','g','g','g','g','g','g','g','g','g','g','g','g'],
-  ['g','g','g','p','p','p','p','p','p','p','g','g','g','g'],
-  ['g','g','p','p','p','p','p','p','p','p','p','g','g','g'],
-  ['g','g','p','p','p','p','p','p','p','p','p','p','g','g'],
-  ['g','g','p','p','p','p','p','p','p','p','p','p','p','g'],
-  ['g','g','p','p','p','p','p','p','p','p','p','p','p','g'],
-  ['g','g','p','p','p','p','p','p','p','p','p','p','g','g'],
-  ['g','g','g','p','p','p','p','p','p','p','p','g','g','g'],
-  ['g','g','g','g','p','p','p','p','p','g','g','g','g','g'],
-  ['g','g','g','g','g','g','g','g','g','g','g','g','g','g'],
-];
+const scene=document.getElementById('scene');
+const gridSvg=document.getElementById('grid-svg');
+const vp=document.getElementById('vp');
+const cellHi=document.getElementById('cell-hi');
 
-const GRASS = ['cesped.png','cesped1.png','cesped2.png','cesped3.png','cesped4.png','cesped5.png'];
-const ROAD  = ['piso1.png','piso2.png','piso3.png','piso4.png','piso5.png','piso6.png','piso7.png'];
+const spxW=(COLS+ROWS)*(TW/2)+300;
+const spxH=(COLS+ROWS)*(TH/2)+300;
+scene.style.width=spxW+'px';
+scene.style.height=spxH+'px';
+cellHi.style.width=TW+'px';
+cellHi.style.height=(TH+14)+'px';
 
-const BUILDINGS = [
-  { src:'puerta.png',    name:'Arco – Entrada Principal',   sub:'Acceso principal al campus UNLaM',           col:8.5,  row:9.5,  w:400, h:245, ax:0.5,  ay:0.82, zb:10 },
-  { src:'biblioteca.png',name:'Biblioteca',                 sub:'Centro de documentación y estudios',          col:3.5,  row:4.5,  w:340, h:264, ax:0.5,  ay:0.85, zb:20 },
-  { src:'gimnasio.png',  name:'Polideportivo',              sub:'Canchas de básquet, vóley y fútbol',          col:9.5,  row:3.5,  w:380, h:300, ax:0.5,  ay:0.88, zb:25 },
-  { src:'medios.png',    name:'Medios de Comunicación',     sub:'Facultad de Comunicación Social',             col:5.5,  row:6.5,  w:310, h:266, ax:0.5,  ay:0.85, zb:20 },
-  { src:'polo.png',      name:'Polo Tecnológico',           sub:'Facultad de Ingeniería e Informática',        col:7.5,  row:5.5,  w:320, h:246, ax:0.5,  ay:0.85, zb:20 },
-  { src:'teatro.png',    name:'Teatro Universidad',         sub:'Espacio cultural y de artes escénicas',       col:4.5,  row:7.5,  w:330, h:258, ax:0.5,  ay:0.85, zb:18 },
-];
-
-const DECOS = [
-  // trees – perimeter
-  { src:'arbol.png',    col:1.5,  row:2.5,  w:60,  h:98,  z:5 },
-  { src:'arbol1.png',  col:2.5,  row:1.5,  w:62,  h:100, z:5 },
-  { src:'arbol2.png',  col:3.5,  row:0.5,  w:68,  h:88,  z:5 },
-  { src:'arbol3.png',  col:6.5,  row:0.5,  w:64,  h:96,  z:5 },
-  { src:'arbol4.png',  col:9.5,  row:0.5,  w:62,  h:94,  z:5 },
-  { src:'arbol5.png',  col:12.5, row:2.5,  w:60,  h:94,  z:5 },
-  { src:'arbol.png',   col:13.5, row:4.5,  w:62,  h:98,  z:5 },
-  { src:'arbol1.png',  col:13.5, row:7.5,  w:60,  h:100, z:5 },
-  { src:'arbol2.png',  col:11.5, row:9.5,  w:68,  h:88,  z:5 },
-  { src:'arbol3.png',  col:1.5,  row:8.5,  w:64,  h:96,  z:5 },
-  { src:'arbol4.png',  col:1.5,  row:5.5,  w:62,  h:94,  z:5 },
-  { src:'arbol5.png',  col:0.5,  row:3.5,  w:60,  h:94,  z:5 },
-  // palms
-  { src:'palmera.png',  col:5.5,  row:8.5,  w:70,  h:128, z:8 },
-  { src:'palmera1.png', col:6.5,  row:8.5,  w:66,  h:122, z:8 },
-  { src:'palmera2.png', col:7.5,  row:8.5,  w:70,  h:120, z:8 },
-  { src:'palmera3.png', col:8.5,  row:7.5,  w:66,  h:120, z:8 },
-  { src:'palmera4.png', col:3.2,  row:8.0,  w:64,  h:112, z:8 },
-  { src:'palmera5.png', col:10.5, row:7.5,  w:68,  h:118, z:8 },
-  // bushes
-  { src:'arbusto.png',  col:5.0,  row:9.0,  w:52,  h:46,  z:6 },
-  { src:'arbusto1.png', col:7.0,  row:9.2,  w:44,  h:38,  z:6 },
-  { src:'arbusto2.png', col:9.0,  row:8.8,  w:52,  h:46,  z:6 },
-  { src:'arbusto3.png', col:3.0,  row:5.5,  w:50,  h:44,  z:6 },
-  { src:'arbusto4.png', col:11.5, row:5.0,  w:40,  h:36,  z:6 },
-  { src:'arbusto5.png', col:12.0, row:6.0,  w:50,  h:44,  z:6 },
-  { src:'arbusto6.png', col:6.5,  row:2.5,  w:44,  h:38,  z:6 },
-  // benches
-  { src:'banco.png',    col:6.8,  row:9.3,  w:70,  h:64,  z:7 },
-  { src:'banco1.png',   col:8.2,  row:8.5,  w:68,  h:62,  z:7 },
-  { src:'banco2.png',   col:5.2,  row:3.5,  w:58,  h:56,  z:7 },
-  // bins
-  { src:'basurero.png',  col:6.3,  row:9.0,  w:44,  h:66,  z:7 },
-  { src:'basurero1.png', col:8.6,  row:8.8,  w:44,  h:64,  z:7 },
-  // pots
-  { src:'maceta.png',   col:2.5,  row:9.0,  w:104, h:94,  z:7 },
-  { src:'maceta1.png',  col:11.0, row:4.5,  w:100, h:90,  z:7 },
-  // walls
-  { src:'paredon.png',  col:3.5,  row:9.5,  w:92,  h:90,  z:6 },
-  { src:'paredon.png',  col:9.5,  row:9.5,  w:92,  h:90,  z:6 },
-  { src:'paredon.png',  col:2.2,  row:7.8,  w:92,  h:90,  z:6 },
-  { src:'paredon.png',  col:11.8, row:7.2,  w:92,  h:90,  z:6 },
-];
-
-const STUDENTS = [
-  { col:7.5,  row:9.0,  skin:'#f5c59a', shirt:'#3a6bc9', hair:'#4a2c10', cls:'sw1' },
-  { col:8.0,  row:9.2,  skin:'#d4956a', shirt:'#9c2d2d', hair:'#1a0a00', cls:'sw2' },
-  { col:6.8,  row:9.5,  skin:'#e8b89a', shirt:'#2a7a3a', hair:'#6b3a1f', cls:'sw3' },
-  { col:7.2,  row:9.6,  skin:'#f0d4b8', shirt:'#7b4a8a', hair:'#b08050', cls:'sw1' },
-  { col:5.5,  row:6.8,  skin:'#c8955a', shirt:'#4a4a9c', hair:'#1a0a00', cls:'sw2' },
-  { col:6.0,  row:7.0,  skin:'#f0c8a0', shirt:'#2a6a2a', hair:'#8B4513', cls:'sw3' },
-  { col:9.5,  row:6.5,  skin:'#f5dcc0', shirt:'#5a8a5a', hair:'#c09050', cls:'sw1' },
-  { col:10.0, row:6.6,  skin:'#e8b0a0', shirt:'#2a5a8a', hair:'#1a0a00', cls:'sw2' },
-  { col:4.0,  row:7.5,  skin:'#d4a070', shirt:'#8a1a1a', hair:'#3a1a05', cls:'sw3' },
-];
-
-// ── RENDER ──
-const scene = document.getElementById('scene');
-const OX = COLS * (TW / 2) + 80;   // screen origin X (center diamond)
-const OY = 60;                       // screen origin Y (top padding)
-
-function px(col, row) {
-  const p = iso(col, row);
-  return { x: p.x + OX, y: p.y + OY };
-}
-
-const scenePxW = (COLS + ROWS) * (TW / 2) + 300;
-const scenePxH = (COLS + ROWS) * (TH / 2) + 300;
-scene.style.width  = scenePxW + 'px';
-scene.style.height = scenePxH + 'px';
-
-// Ground tiles
-for (let r = 0; r < ROWS; r++) {
-  for (let c = 0; c < COLS; c++) {
-    const cell = GRID[r][c];
-    const { x, y } = px(c, r);
-    const el = document.createElement('img');
-    el.className = 'tile';
-    el.src = 'ASSETS/' + (cell === 'g'
-      ? GRASS[(c * 3 + r * 7) % GRASS.length]
-      : ROAD[(c + r) % ROAD.length]);
-    el.style.cssText = `left:${x - TW/2}px;top:${y}px;width:${TW}px;height:${TH+14}px;z-index:${(c+r)*2};`;
-    scene.appendChild(el);
+// ── BUILD GRID SVG ──
+function buildGrid(){
+  gridSvg.setAttribute('width',spxW);
+  gridSvg.setAttribute('height',spxH);
+  let s='';
+  for(let k=0;k<=COLS+ROWS;k++){
+    const sc2=Math.max(0,k-ROWS), sr2=Math.min(k,ROWS);
+    const ec=Math.min(k,COLS),    er=Math.max(0,k-COLS);
+    const p1=isoXY(sc2,sr2), p2=isoXY(ec,er);
+    s+=`<line x1="${p1.x}" y1="${p1.y+TH/2}" x2="${p2.x}" y2="${p2.y+TH/2}" class="gl"/>`;
   }
+  for(let k=-ROWS;k<=COLS;k++){
+    const sr2=Math.max(0,-k), sc2=sr2+k;
+    const er=Math.min(ROWS,COLS-k), ec=er+k;
+    if(sc2<0||sc2>COLS||ec<0||ec>COLS) continue;
+    const p1=isoXY(sc2,sr2), p2=isoXY(ec,er);
+    s+=`<line x1="${p1.x}" y1="${p1.y+TH/2}" x2="${p2.x}" y2="${p2.y+TH/2}" class="gl"/>`;
+  }
+  gridSvg.innerHTML=s;
+}
+buildGrid();
+
+// ── ASSET PANEL ──
+function buildPanel(){
+  const g=document.getElementById('asset-grid');
+  g.innerHTML='';
+  const list=catFilter==='all'?ASSETS:ASSETS.filter(a=>a.cat===catFilter);
+  list.forEach(a=>{
+    const d=document.createElement('div');
+    d.className='ac'+(picked&&picked.id===a.id?' sel':'');
+    d.innerHTML=`<img src="ASSETS/${a.src}" loading="lazy"/><div class="ac-lbl">${a.lbl}</div>`;
+    d.onclick=()=>pickAsset(a);
+    g.appendChild(d);
+  });
+}
+buildPanel();
+
+function filterCat(el,cat){
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on'); catFilter=cat; buildPanel();
 }
 
-// Decorations
-DECOS.forEach(d => {
-  const { x, y } = px(d.col, d.row);
-  const el = document.createElement('img');
-  el.className = 'tile';
-  el.src = 'ASSETS/' + d.src;
-  const z = (Math.floor(d.col) + Math.floor(d.row)) * 2 + (d.z || 5);
-  el.style.cssText = `left:${x-d.w/2}px;top:${y-d.h+TH/2}px;width:${d.w}px;height:${d.h}px;z-index:${z};`;
-  scene.appendChild(el);
+function pickAsset(a){
+  picked=a; selUid=null;
+  buildPanel(); updateProps(); updateList();
+  setMBadge(`📍 Colocando: ${a.lbl} — click en la grilla`);
+  // on mobile, close left panel after picking
+  if(window.innerWidth<=1100) closeAllPanels();
+}
+
+// ── PLACE SPRITE ──
+function placeAt(col,row){
+  if(!picked) return;
+  const id=++uid;
+  const e={uid:id,aid:picked.id,col,row,scale:1,zOff:0,el:null};
+  placed.push(e); renderSpr(e); selectUid(id); updateList();
+}
+
+function renderSpr(e){
+  const a=ASSETS.find(x=>x.id===e.aid); if(!a) return;
+  const {x,y}=isoXY(e.col,e.row);
+  const w=a.w*e.scale, h=a.h*e.scale;
+  const lx=x-w*a.ax, ly=y-h*a.ay+TH/2;
+  const z=(e.col+e.row)*2+40+e.zOff;
+  if(e.el) e.el.remove();
+  const wrap=document.createElement('div');
+  wrap.className='sw'+(e.uid===selUid?' selected':'');
+  wrap.dataset.uid=e.uid;
+  wrap.style.cssText=`left:${lx}px;top:${ly}px;width:${w}px;height:${h}px;z-index:${z};`;
+  const img=document.createElement('img');
+  img.src='ASSETS/'+a.src; img.style.width=w+'px'; img.style.height=h+'px';
+  wrap.appendChild(img);
+  const lbl=document.createElement('div'); lbl.className='sw-lbl'; lbl.textContent=a.lbl;
+  wrap.appendChild(lbl);
+  const ring=document.createElement('div'); ring.className='sw-ring';
+  wrap.appendChild(ring);
+  // Mouse drag
+  wrap.addEventListener('mousedown',ev=>{
+    if(panMode) return;
+    ev.stopPropagation(); selectUid(e.uid);
+    dragSpr=e; ev.preventDefault();
+  });
+  // Touch tap/drag on sprite
+  wrap.addEventListener('touchstart',ev=>{
+    if(panMode) return;
+    ev.stopPropagation(); selectUid(e.uid);
+    dragSpr=e;
+  },{passive:true});
+  e.el=wrap; scene.appendChild(wrap);
+}
+
+function rerender(e){ renderSpr(e); }
+
+// ── SELECT ──
+function selectUid(id){
+  selUid=id; picked=null;
+  buildPanel(); updateProps(); updateList();
+  // update ring class
+  document.querySelectorAll('.sw').forEach(w=>{
+    w.classList.toggle('selected', parseInt(w.dataset.uid)===id);
+  });
+  setMBadge('⚡ Asset seleccionado — arrastrá para mover');
+}
+
+function clearSel(){
+  selUid=null; picked=null;
+  buildPanel(); updateProps(); updateList();
+  document.querySelectorAll('.sw.selected').forEach(w=>w.classList.remove('selected'));
+  setMBadge('🖱 Click asset → click grilla para colocar');
+}
+
+function updateProps(){
+  const e=placed.find(p=>p.uid===selUid);
+  const nm=document.getElementById('sel-name');
+  const rs=document.getElementById('row-scale');
+  const rz=document.getElementById('row-z');
+  const ab=document.getElementById('act-btns');
+  if(!e){
+    nm.textContent=picked?`Colocando: ${picked.lbl}`:'Nada seleccionado';
+    nm.style.color=picked?'var(--green-pale)':'var(--text-dim)';
+    rs.style.display=rz.style.display=ab.style.display='none'; return;
+  }
+  const a=ASSETS.find(x=>x.id===e.aid);
+  nm.textContent=a?a.lbl:e.aid; nm.style.color='var(--green-pale)';
+  rs.style.display=rz.style.display='flex'; ab.style.display='flex';
+  document.getElementById('sl-scale').value=e.scale;
+  document.getElementById('pv-scale').textContent=e.scale.toFixed(2);
+  document.getElementById('sl-z').value=e.zOff;
+  document.getElementById('pv-z').textContent=e.zOff;
+}
+
+function onScale(v){
+  document.getElementById('pv-scale').textContent=parseFloat(v).toFixed(2);
+  const e=placed.find(p=>p.uid===selUid); if(!e) return;
+  e.scale=parseFloat(v); rerender(e);
+}
+function onZ(v){
+  document.getElementById('pv-z').textContent=v;
+  const e=placed.find(p=>p.uid===selUid); if(!e) return;
+  e.zOff=parseInt(v); rerender(e);
+}
+
+function updateList(){
+  const list=document.getElementById('placed-list');
+  list.innerHTML='';
+  document.getElementById('count').textContent=placed.length;
+  [...placed].reverse().forEach(e=>{
+    const a=ASSETS.find(x=>x.id===e.aid);
+    const d=document.createElement('div');
+    d.className='pi'+(e.uid===selUid?' sel':'');
+    d.innerHTML=`<span>${a?a.lbl:e.aid}</span><span class="pi-del">×</span>`;
+    d.onclick=()=>selectUid(e.uid);
+    d.querySelector('.pi-del').onclick=ev=>{ev.stopPropagation();deleteUid(e.uid);};
+    list.appendChild(d);
+  });
+}
+
+function deleteSelected(){ if(selUid!=null) deleteUid(selUid); }
+function deleteUid(id){
+  const i=placed.findIndex(p=>p.uid===id); if(i<0) return;
+  if(placed[i].el) placed[i].el.remove();
+  placed.splice(i,1);
+  if(selUid===id){ selUid=null; updateProps(); }
+  updateList();
+}
+function duplicateSelected(){
+  const e=placed.find(p=>p.uid===selUid); if(!e) return;
+  const id=++uid;
+  const c={uid:id,aid:e.aid,col:e.col+1,row:e.row,scale:e.scale,zOff:e.zOff,el:null};
+  placed.push(c); renderSpr(c); selectUid(id); updateList();
+}
+function clearAll(){
+  if(!confirm('¿Limpiar todo?')) return;
+  placed.forEach(e=>{if(e.el)e.el.remove();}); placed=[];
+  selUid=null; updateProps(); updateList();
+}
+
+// ── CELL HOVER HIGHLIGHT ──
+function hitCell(clientX,clientY){
+  const r=scene.getBoundingClientRect();
+  const sx=(clientX-r.left)/sc, sy=(clientY-r.top)/sc;
+  return screenToCell(sx,sy);
+}
+vp.addEventListener('mousemove',e=>{
+  const {col,row}=hitCell(e.clientX,e.clientY);
+  if(col>=0&&col<=COLS&&row>=0&&row<=ROWS&&showGrid&&picked){
+    const {x,y}=isoXY(col,row);
+    cellHi.style.left=(x-TW/2)+'px'; cellHi.style.top=y+'px';
+    cellHi.style.display='block';
+  } else { cellHi.style.display='none'; }
 });
 
-// Buildings
-BUILDINGS.forEach(b => {
-  const { x, y } = px(b.col, b.row);
-  const el = document.createElement('img');
-  el.className = 'building';
-  el.src = 'ASSETS/' + b.src;
-  const z = (Math.floor(b.col) + Math.floor(b.row)) * 2 + 50 + (b.zb || 0);
-  el.style.cssText = `left:${x-b.w*b.ax}px;top:${y-b.h*b.ay}px;width:${b.w}px;height:${b.h}px;z-index:${z};`;
-  el.addEventListener('mouseenter', e => showTip(e, b.name, b.sub));
-  el.addEventListener('mousemove', moveTip);
-  el.addEventListener('mouseleave', hideTip);
-  scene.appendChild(el);
+// ── CLICK → PLACE ──
+vp.addEventListener('click',e=>{
+  if(panMode||dragSpr) return;
+  if(e.target.closest('.sw')){ return; }
+  if(!picked){ clearSel(); return; }
+  const {col,row}=hitCell(e.clientX,e.clientY);
+  placeAt(col,row);
 });
 
-// Students
-function studentSVG(skin, shirt, hair) {
-  return `<svg viewBox="0 0 22 38" width="24" height="42" xmlns="http://www.w3.org/2000/svg">
-    <ellipse cx="11" cy="6" rx="5" ry="5.5" fill="${skin}"/>
-    <rect x="7" y="11" width="8" height="14" rx="2" fill="${shirt}"/>
-    <rect x="4" y="12" width="4" height="10" rx="2" fill="${shirt}"/>
-    <rect x="14" y="12" width="4" height="10" rx="2" fill="${shirt}"/>
-    <rect x="7" y="24" width="3" height="10" rx="1.5" fill="#222"/>
-    <rect x="12" y="24" width="3" height="10" rx="1.5" fill="#333"/>
-    <ellipse cx="11" cy="5" rx="5.5" ry="3" fill="${hair}"/>
-  </svg>`;
-}
-STUDENTS.forEach(s => {
-  const { x, y } = px(s.col, s.row);
-  const el = document.createElement('div');
-  el.className = 'student ' + s.cls;
-  el.innerHTML = studentSVG(s.skin, s.shirt, s.hair);
-  const z = (Math.floor(s.col) + Math.floor(s.row)) * 2 + 80;
-  el.style.cssText = `left:${x-12}px;top:${y-38+TH/2}px;z-index:${z};`;
-  scene.appendChild(el);
+// ── MOUSE DRAG (sprite) ──
+window.addEventListener('mousemove',e=>{
+  if(dragSpr){
+    const {col,row}=hitCell(e.clientX,e.clientY);
+    dragSpr.col=col; dragSpr.row=row; rerender(dragSpr); return;
+  }
+  if(panning){
+    px+=e.clientX-plx; py+=e.clientY-ply;
+    plx=e.clientX; ply=e.clientY; applyT();
+  }
+});
+window.addEventListener('mouseup',()=>{
+  if(dragSpr){dragSpr=null; updateList();}
+  panning=false; vp.classList.remove('panning');
 });
 
-// ── TOOLTIP ──
-const tooltip = document.getElementById('tooltip');
-const ttName  = document.getElementById('tt-name');
-const ttSub   = document.getElementById('tt-sub');
-function showTip(e, name, sub) { ttName.textContent=name; ttSub.textContent=sub||''; tooltip.classList.add('visible'); moveTip(e); }
-function moveTip(e) {
-  let tx=e.clientX+14, ty=e.clientY-14;
-  if(tx+260>window.innerWidth) tx=e.clientX-270;
-  tooltip.style.left=tx+'px'; tooltip.style.top=ty+'px';
-}
-function hideTip() { tooltip.classList.remove('visible'); }
-
-// ── PAN & ZOOM ──
-const viewport = document.getElementById('viewport');
-let scale=1, panX=0, panY=0, dragging=false, lx=0, ly=0;
-
-function applyT() {
-  scene.style.transform=`translate(${panX}px,${panY}px) scale(${scale})`;
-  document.getElementById('zoom-label').textContent=Math.round(scale*100)+'%';
-}
-function centerView() {
-  const vw=window.innerWidth, vh=window.innerHeight-56;
-  const cx = OX + (COLS/2-ROWS/2)*(TW/2);
-  const cy = OY + (COLS+ROWS)/2*(TH/2);
-  panX=vw/2-cx*scale; panY=vh/2-cy*scale; applyT();
-}
-function zoomBy(d) {
-  const vw=window.innerWidth, vh=window.innerHeight-56;
-  const prev=scale;
-  scale=Math.max(0.25,Math.min(2.5,scale+d));
-  panX=vw/2-(vw/2-panX)*(scale/prev);
-  panY=vh/2-(vh/2-panY)*(scale/prev);
-  applyT();
-}
-function resetView() { scale=1; centerView(); }
-
-window.addEventListener('load',()=>{
-  const vw=window.innerWidth, vh=window.innerHeight-56;
-  const fitW=vw/scenePxW*0.85, fitH=vh/scenePxH*0.85;
-  scale=Math.min(1,fitW,fitH);
-  centerView();
+// ── PAN MOUSEDOWN ──
+vp.addEventListener('mousedown',e=>{
+  if(!panMode||dragSpr) return;
+  panning=true; plx=e.clientX; ply=e.clientY;
+  vp.classList.add('panning');
 });
 
-// drag
-viewport.addEventListener('mousedown',e=>{ if(e.button!==0)return; dragging=true; lx=e.clientX; ly=e.clientY; viewport.classList.add('dragging'); });
-window.addEventListener('mousemove',e=>{ if(!dragging)return; panX+=e.clientX-lx; panY+=e.clientY-ly; lx=e.clientX; ly=e.clientY; applyT(); });
-window.addEventListener('mouseup',()=>{ dragging=false; viewport.classList.remove('dragging'); });
-
-// touch
-viewport.addEventListener('touchstart',e=>{ if(e.touches.length===1){dragging=true;lx=e.touches[0].clientX;ly=e.touches[0].clientY;} },{passive:true});
-window.addEventListener('touchmove',e=>{ if(!dragging||e.touches.length!==1)return; panX+=e.touches[0].clientX-lx; panY+=e.touches[0].clientY-ly; lx=e.touches[0].clientX; ly=e.touches[0].clientY; applyT(); },{passive:true});
-window.addEventListener('touchend',()=>dragging=false);
-
-// scroll zoom
-viewport.addEventListener('wheel',e=>{
+// ── SCROLL ZOOM ──
+vp.addEventListener('wheel',e=>{
   e.preventDefault();
-  const prev=scale, d=e.deltaY<0?0.08:-0.08;
-  scale=Math.max(0.25,Math.min(2.5,scale+d));
-  const r=viewport.getBoundingClientRect();
+  const prev=sc, d=e.deltaY<0?.08:-.08;
+  sc=Math.max(.2,Math.min(3,sc+d));
+  const r=vp.getBoundingClientRect();
   const mx=e.clientX-r.left, my=e.clientY-r.top;
-  panX=mx-(mx-panX)*(scale/prev); panY=my-(my-panY)*(scale/prev);
+  px=mx-(mx-px)*(sc/prev); py=my-(my-py)*(sc/prev);
   applyT();
 },{passive:false});
 
-// keyboard
-window.addEventListener('keydown',e=>{
-  const s=60;
-  if(e.key==='ArrowLeft') {panX+=s;applyT();}
-  if(e.key==='ArrowRight'){panX-=s;applyT();}
-  if(e.key==='ArrowUp')   {panY+=s;applyT();}
-  if(e.key==='ArrowDown') {panY-=s;applyT();}
-  if(e.key==='+'||e.key==='=') zoomBy(0.1);
-  if(e.key==='-') zoomBy(-0.1);
-  if(e.key==='0') resetView();
+// ── TOUCH EVENTS ──
+vp.addEventListener('touchstart',e=>{
+  if(e.touches.length===1){
+    touch1={x:e.touches[0].clientX,y:e.touches[0].clientY};
+    touch2=null; pinchDist0=null;
+    if(panMode){ panning=true; plx=touch1.x; ply=touch1.y; }
+  }
+  if(e.touches.length===2){
+    touch1={x:e.touches[0].clientX,y:e.touches[0].clientY};
+    touch2={x:e.touches[1].clientX,y:e.touches[1].clientY};
+    pinchDist0=Math.hypot(touch2.x-touch1.x,touch2.y-touch1.y);
+    pinchSc0=sc;
+    panning=false;
+  }
+},{passive:true});
+
+vp.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  if(e.touches.length===2 && pinchDist0){
+    const d=Math.hypot(e.touches[1].clientX-e.touches[0].clientX, e.touches[1].clientY-e.touches[0].clientY);
+    const prev=sc;
+    sc=Math.max(.2,Math.min(3,pinchSc0*(d/pinchDist0)));
+    const mx=(e.touches[0].clientX+e.touches[1].clientX)/2;
+    const my=(e.touches[0].clientY+e.touches[1].clientY)/2;
+    const r=vp.getBoundingClientRect();
+    px=(mx-r.left)-(( mx-r.left)-px)*(sc/prev);
+    py=(my-r.top) -((my-r.top) -py)*(sc/prev);
+    applyT(); return;
+  }
+  if(e.touches.length===1 && dragSpr){
+    const {col,row}=hitCell(e.touches[0].clientX,e.touches[0].clientY);
+    dragSpr.col=col; dragSpr.row=row; rerender(dragSpr); return;
+  }
+  if(e.touches.length===1 && panMode && panning){
+    px+=e.touches[0].clientX-plx; py+=e.touches[0].clientY-ply;
+    plx=e.touches[0].clientX; ply=e.touches[0].clientY; applyT();
+  }
+},{passive:false});
+
+vp.addEventListener('touchend',()=>{
+  if(dragSpr){dragSpr=null; updateList();}
+  panning=false; touch1=touch2=null; pinchDist0=null;
 });
+
+// ── KEYBOARD ──
+window.addEventListener('keydown',e=>{
+  if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
+  if(e.key==='Delete'||e.key==='Backspace') deleteSelected();
+  if(e.key==='Escape') clearSel();
+  if(e.key==='+'||e.key==='=') zoomBy(.1);
+  if(e.key==='-') zoomBy(-.1);
+  if(e.key==='0') resetView();
+  const s=50;
+  if(e.key==='ArrowLeft') {px+=s;applyT();}
+  if(e.key==='ArrowRight'){px-=s;applyT();}
+  if(e.key==='ArrowUp')   {py+=s;applyT();}
+  if(e.key==='ArrowDown') {py-=s;applyT();}
+});
+
+// ── TRANSFORM ──
+function applyT(){
+  scene.style.transform=`translate(${px}px,${py}px) scale(${sc})`;
+  document.getElementById('zoom-lbl').textContent=Math.round(sc*100)+'%';
+}
+function centerView(){
+  const r=vp.getBoundingClientRect();
+  const cx=OX+(COLS/2-ROWS/2)*(TW/2);
+  const cy=OY+(COLS+ROWS)/2*(TH/2);
+  px=r.width/2-cx*sc; py=r.height/2-cy*sc; applyT();
+}
+function zoomBy(d){
+  const r=vp.getBoundingClientRect(), prev=sc;
+  sc=Math.max(.2,Math.min(3,sc+d));
+  px=r.width/2-(r.width/2-px)*(sc/prev);
+  py=r.height/2-(r.height/2-py)*(sc/prev);
+  applyT();
+}
+function resetView(){ sc=1; centerView(); }
+
+window.addEventListener('load',()=>{
+  const r=vp.getBoundingClientRect();
+  sc=Math.min(1, r.width/spxW*.9, r.height/spxH*.9);
+  centerView();
+});
+window.addEventListener('resize', centerView);
+
+// ── TOGGLES ──
+function toggleGrid(){
+  showGrid=!showGrid;
+  gridSvg.style.opacity=showGrid?'1':'0';
+  document.getElementById('btn-grid').classList.toggle('active',showGrid);
+}
+function togglePan(){
+  panMode=!panMode;
+  vp.className=panMode?'pan-mode':'';
+  document.getElementById('btn-pan').classList.toggle('active',panMode);
+  setMBadge(panMode?'✋ Arrastrá para mover la vista':'🖱 Click asset → click grilla para colocar');
+}
+
+// ── PANEL DRAWERS ──
+const PL=document.getElementById('panel-left');
+const PR=document.getElementById('panel-right');
+const BD=document.getElementById('backdrop');
+const isSmall=()=>window.innerWidth<=1100;
+
+function closeAllPanels(){
+  PL.classList.add('collapsed');
+  PR.classList.add('collapsed');
+  BD.classList.remove('show');
+  document.getElementById('btn-pl').classList.remove('active');
+  document.getElementById('btn-pr').classList.remove('active');
+}
+function toggleLeft(){
+  const open=PL.classList.contains('collapsed');
+  closeAllPanels();
+  if(open){ PL.classList.remove('collapsed'); if(isSmall()) BD.classList.add('show'); document.getElementById('btn-pl').classList.add('active'); }
+}
+function toggleRight(){
+  const open=PR.classList.contains('collapsed');
+  closeAllPanels();
+  if(open){ PR.classList.remove('collapsed'); if(isSmall()) BD.classList.add('show'); document.getElementById('btn-pr').classList.add('active'); }
+}
+
+// On load: collapse panels on small screens
+window.addEventListener('DOMContentLoaded',()=>{
+  if(isSmall()){ PL.classList.add('collapsed'); PR.classList.add('collapsed'); }
+});
+
+// ── MODE BADGE ──
+function setMBadge(t){ document.getElementById('mode-badge').textContent=t; }
+
+// ── EXPORT / IMPORT ──
+function exportLayout(){
+  const data=placed.map(e=>({assetId:e.aid,col:e.col,row:e.row,scale:e.scale,zOff:e.zOff}));
+  document.getElementById('modal-ta').value=JSON.stringify(data,null,2);
+  document.getElementById('modal').classList.add('show');
+}
+function closeModal(){ document.getElementById('modal').classList.remove('show'); }
+function copyExport(){
+  const ta=document.getElementById('modal-ta');
+  navigator.clipboard.writeText(ta.value).then(()=>alert('✅ Copiado!')).catch(()=>{ta.select();document.execCommand('copy');});
+}
+function importLayout(){
+  const json=prompt('Pegá el JSON del layout:'); if(!json) return;
+  try{
+    const data=JSON.parse(json);
+    placed.forEach(e=>{if(e.el)e.el.remove();}); placed=[];
+    data.forEach(d=>{
+      const id=++uid;
+      const e={uid:id,aid:d.assetId,col:d.col,row:d.row,scale:d.scale||1,zOff:d.zOff||0,el:null};
+      placed.push(e); renderSpr(e);
+    });
+    updateList();
+  }catch(err){alert('JSON inválido: '+err.message);}
+}
 </script>
 </body>
 </html>
