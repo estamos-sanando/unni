@@ -1,399 +1,457 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Universidad Nacional de La Matanza - Campus Isometrico</title>
+  <title>UNLaM – Campus Isométrico</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&display=swap" rel="stylesheet" />
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #f0f0f0; overflow: auto; font-family: "Segoe UI", sans-serif; min-height: 100vh; }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #1a2e1a;
+      font-family: 'Outfit', sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      user-select: none;
+    }
+
+    /* ── HEADER ── */
     #header {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
-      background: linear-gradient(135deg, #1a4a1a 0%, #2d7a2d 60%, #1a4a1a 100%);
-      color: #fff; padding: 10px 24px; display: flex; align-items: center; gap: 16px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      height: 56px;
+      background: linear-gradient(90deg, #0d2b0d 0%, #1a5c1a 50%, #0d2b0d 100%);
+      border-bottom: 2px solid #2e8b2e;
+      display: flex; align-items: center; gap: 14px; padding: 0 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
     }
-    #header .logo-circle {
-      width: 42px; height: 42px; border: 3px solid #7fff7f; border-radius: 50%;
+    .logo {
+      width: 38px; height: 38px;
+      background: radial-gradient(circle, #2ecc71, #0d7a3a);
+      border-radius: 50%;
+      border: 2px solid #7fff7f;
       display: flex; align-items: center; justify-content: center;
-      font-size: 20px; font-weight: 900; color: #7fff7f; flex-shrink: 0;
+      font-weight: 900; font-size: 18px; color: #fff;
+      flex-shrink: 0;
+      box-shadow: 0 0 12px rgba(46,204,113,0.5);
     }
-    #header h1 { font-size: 15px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; line-height: 1.3; }
-    #header p { font-size: 11px; opacity: .75; margin-top: 2px; }
-    #controls { margin-left: auto; display: flex; gap: 8px; align-items: center; }
-    #controls button {
-      background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.35);
-      color: #fff; border-radius: 6px; padding: 5px 12px; cursor: pointer;
-      font-size: 13px; transition: background .2s;
+    .header-text h1 {
+      font-size: 14px; font-weight: 700; color: #fff;
+      text-transform: uppercase; letter-spacing: .06em;
     }
-    #controls button:hover { background: rgba(255,255,255,.3); }
-    #zoom-label { font-size: 13px; color: #afffaf; min-width: 42px; text-align: center; }
-    #scene-container { padding-top: 66px; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; }
-    #scene-wrapper { transform-origin: top center; transition: transform .25s ease; position: relative; }
-    #scene { position: relative; width: 1340px; height: 1520px; background: #ffffff; }
-    .sprite { position: absolute; image-rendering: pixelated; image-rendering: crisp-edges; }
-    .student { position: absolute; width: 22px; height: 38px; cursor: default; }
-    @keyframes walkBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-    .student.walking { animation: walkBob 0.55s ease-in-out infinite; }
-    .student.sitting { bottom: 0; }
+    .header-text p { font-size: 11px; color: #7fff7f; opacity: .85; }
+
+    .header-controls {
+      margin-left: auto;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .ctrl-btn {
+      background: rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.25);
+      color: #fff; border-radius: 6px; padding: 5px 13px;
+      cursor: pointer; font-size: 13px; font-family: 'Outfit', sans-serif;
+      transition: background .15s, transform .1s;
+    }
+    .ctrl-btn:hover { background: rgba(255,255,255,.22); }
+    .ctrl-btn:active { transform: scale(.96); }
+    #zoom-label {
+      font-size: 13px; color: #afffaf; min-width: 46px;
+      text-align: center; font-weight: 600;
+    }
+    .hint-badge {
+      background: rgba(46,204,113,.15);
+      border: 1px solid rgba(46,204,113,.35);
+      color: #7fff7f; border-radius: 20px;
+      padding: 4px 12px; font-size: 11px;
+    }
+
+    /* ── CANVAS AREA ── */
+    #viewport {
+      position: fixed;
+      top: 56px; left: 0; right: 0; bottom: 0;
+      overflow: hidden;
+      cursor: grab;
+      background: radial-gradient(ellipse 80% 60% at 50% 60%, #1e3d1e 0%, #0e1e0e 100%);
+    }
+    #viewport.dragging { cursor: grabbing; }
+
+    /* ── SCENE ── */
+    #scene {
+      position: absolute;
+      transform-origin: 0 0;
+      will-change: transform;
+    }
+
+    /* ── SPRITES ── */
+    .tile {
+      position: absolute;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      pointer-events: none;
+    }
+    .building {
+      position: absolute;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      cursor: pointer;
+      transition: filter .15s;
+    }
+    .building:hover { filter: brightness(1.12) drop-shadow(0 0 8px rgba(46,204,113,.7)); }
+
+    /* ── TOOLTIP ── */
+    #tooltip {
+      position: fixed;
+      background: rgba(10,20,10,.92);
+      border: 1px solid #2e8b2e;
+      color: #fff; border-radius: 8px;
+      padding: 8px 14px; font-size: 13px; font-weight: 600;
+      pointer-events: none;
+      opacity: 0; transition: opacity .18s;
+      z-index: 2000;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 20px rgba(0,0,0,.5);
+    }
+    #tooltip.visible { opacity: 1; }
+    #tooltip .tt-sub { font-size: 11px; color: #7fff7f; font-weight: 400; margin-top: 2px; }
+
+    /* ── LEGEND ── */
     #legend {
-      position: fixed; bottom: 16px; right: 16px; background: rgba(0,0,0,.78);
-      color: #fff; border-radius: 10px; padding: 12px 16px; font-size: 12px;
-      line-height: 1.9; z-index: 9998; backdrop-filter: blur(8px);
-      border: 1px solid rgba(255,255,255,.15); min-width: 210px;
+      position: fixed; bottom: 16px; right: 16px;
+      background: rgba(8,16,8,.88);
+      border: 1px solid rgba(46,204,113,.3);
+      color: #fff; border-radius: 12px;
+      padding: 14px 18px; font-size: 12px; line-height: 2;
+      z-index: 1000; backdrop-filter: blur(10px);
+      min-width: 220px;
+      box-shadow: 0 8px 30px rgba(0,0,0,.5);
+    }
+    #legend .leg-title {
+      font-weight: 700; font-size: 13px; color: #2ecc71;
+      margin-bottom: 4px; display: flex; align-items: center; gap: 6px;
+    }
+    .leg-item { display: flex; align-items: center; gap: 8px; }
+    .leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    #legend hr { border-color: rgba(255,255,255,.1); margin: 6px 0; }
+    #legend .leg-hint { color: #888; font-size: 10px; }
+
+    /* ── STUDENTS ── */
+    .student { position: absolute; pointer-events: none; }
+    @keyframes walkBob  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+    @keyframes walkBob2 { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+    .sw1 { animation: walkBob  .50s ease-in-out infinite; }
+    .sw2 { animation: walkBob2 .55s ease-in-out infinite .18s; }
+    .sw3 { animation: walkBob2 .60s ease-in-out infinite .33s; }
+
+    /* compass */
+    #compass {
+      position: fixed; top: 70px; right: 16px;
+      width: 52px; height: 52px;
+      background: rgba(8,16,8,.88);
+      border: 1px solid rgba(46,204,113,.3);
+      border-radius: 50%;
+      z-index: 1000;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
     }
   </style>
 </head>
 <body>
+
 <div id="header">
-  <div class="logo-circle">U</div>
-  <div>
+  <div class="logo">U</div>
+  <div class="header-text">
     <h1>Universidad Nacional de La Matanza</h1>
-    <p>Campus Virtual - Vista Isometrica 3D</p>
+    <p>Campus Virtual – Vista Isométrica</p>
   </div>
-  <div id="controls">
-    <button onclick="zoom(-0.1)">-</button>
+  <div class="header-controls">
+    <span class="hint-badge">🖱 Arrastrá para mover · Scroll para zoom</span>
+    <button class="ctrl-btn" onclick="zoomBy(-0.15)">−</button>
     <span id="zoom-label">100%</span>
-    <button onclick="zoom(+0.1)">+</button>
-    <button onclick="resetZoom()">Reset</button>
+    <button class="ctrl-btn" onclick="zoomBy(+0.15)">+</button>
+    <button class="ctrl-btn" onclick="resetView()">⌂ Reset</button>
   </div>
 </div>
 
-<div id="scene-container">
-<div id="scene-wrapper">
-<div id="scene">
-
-<!-- NIVEL 0: CESPED BASE INFERIOR -->
-<img class="sprite" src="ASSETS/cesped.png"  style="left:50px;  top:1090px; width:134px; height:103px;" />
-<img class="sprite" src="ASSETS/cesped1.png" style="left:148px; top:1050px; width:134px; height:105px;" />
-<img class="sprite" src="ASSETS/cesped2.png" style="left:246px; top:1010px; width:134px; height:96px;" />
-<img class="sprite" src="ASSETS/cesped3.png" style="left:344px; top:970px;  width:134px; height:95px;" />
-<img class="sprite" src="ASSETS/cesped4.png" style="left:442px; top:930px;  width:134px; height:95px;" />
-<img class="sprite" src="ASSETS/cesped5.png" style="left:540px; top:890px;  width:134px; height:95px;" />
-<img class="sprite" src="ASSETS/cesped.png"  style="left:148px; top:1130px; width:134px; height:103px;" />
-<img class="sprite" src="ASSETS/cesped1.png" style="left:246px; top:1090px; width:134px; height:105px;" />
-<img class="sprite" src="ASSETS/cesped2.png" style="left:344px; top:1050px; width:134px; height:96px;" />
-<img class="sprite" src="ASSETS/cesped3.png" style="left:442px; top:1010px; width:134px; height:95px;" />
-<img class="sprite" src="ASSETS/cesped4.png" style="left:540px; top:970px;  width:134px; height:95px;" />
-<img class="sprite" src="ASSETS/cesped5.png" style="left:246px; top:1160px; width:134px; height:95px;" />
-<img class="sprite" src="ASSETS/cesped.png"  style="left:344px; top:1120px; width:134px; height:103px;" />
-<img class="sprite" src="ASSETS/cesped1.png" style="left:442px; top:1080px; width:134px; height:105px;" />
-
-<!-- CAMINO/PISOPUERTA ENTRADA -->
-<img class="sprite" src="ASSETS/pisopuerta.png" style="left:80px; top:1160px; width:404px; height:224px; z-index:5;" />
-<img class="sprite" src="ASSETS/pisolargo.png"  style="left:10px; top:1100px; width:359px; height:218px; z-index:4;" />
-<img class="sprite" src="ASSETS/pisolargo.png"  style="left:330px; top:980px;  width:359px; height:218px; z-index:4;" />
-
-<!-- ARCO DE ENTRADA PRINCIPAL -->
-<img class="sprite" src="ASSETS/puerta.png"
-     style="left:90px; top:1152px; width:463px; height:284px; z-index:40;" title="UNIVERSIDAD NACIONAL DE LA MATANZA" />
-
-<!-- PAREDES BAJAS NIVEL 0 -->
-<img class="sprite" src="ASSETS/paredon.png" style="left:10px;  top:1255px; width:105px; height:102px; z-index:30;" />
-<img class="sprite" src="ASSETS/paredon.png" style="left:100px; top:1295px; width:105px; height:102px; z-index:30;" />
-<img class="sprite" src="ASSETS/paredon.png" style="left:520px; top:1185px; width:105px; height:102px; z-index:30;" />
-<img class="sprite" src="ASSETS/paredon.png" style="left:600px; top:1149px; width:105px; height:102px; z-index:30;" />
-
-<!-- VEGETACION NIVEL 0 -->
-<img class="sprite" src="ASSETS/palmera.png"  style="left:60px;  top:1270px; width:83px; height:150px; z-index:50;" />
-<img class="sprite" src="ASSETS/palmera2.png" style="left:185px; top:1345px; width:83px; height:140px; z-index:50;" />
-<img class="sprite" src="ASSETS/palmera3.png" style="left:315px; top:1345px; width:78px; height:140px; z-index:50;" />
-<img class="sprite" src="ASSETS/palmera4.png" style="left:540px; top:1235px; width:75px; height:130px; z-index:50;" />
-<img class="sprite" src="ASSETS/arbol.png"    style="left:12px;  top:1165px; width:70px; height:114px; z-index:45;" />
-<img class="sprite" src="ASSETS/arbol1.png"   style="left:596px; top:1086px; width:73px; height:115px; z-index:45;" />
-<img class="sprite" src="ASSETS/maceta.png"   style="left:52px;  top:1368px; width:122px; height:110px; z-index:55;" />
-<img class="sprite" src="ASSETS/arbusto.png"  style="left:516px; top:1292px; width:60px; height:55px;  z-index:45;" />
-<img class="sprite" src="ASSETS/arbusto2.png" style="left:566px; top:1315px; width:60px; height:55px;  z-index:45;" />
-
-<!-- ESTUDIANTES NIVEL 0 -->
-<svg class="student walking" style="left:425px; top:1285px; z-index:60;" viewBox="0 0 22 38" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="11" cy="6" rx="5" ry="5.5" fill="#f5c59a"/>
-  <rect x="7" y="11" width="8" height="14" rx="2" fill="#3a6bc9"/>
-  <rect x="4" y="12" width="4" height="10" rx="2" fill="#3a6bc9"/>
-  <rect x="14" y="12" width="4" height="10" rx="2" fill="#3a6bc9"/>
-  <rect x="7" y="24" width="3" height="10" rx="1.5" fill="#222"/>
-  <rect x="12" y="24" width="3" height="10" rx="1.5" fill="#333"/>
-  <ellipse cx="11" cy="5" rx="5.5" ry="3" fill="#4a2c10"/>
-</svg>
-<svg class="student walking" style="left:455px; top:1265px; z-index:60; animation-delay:.18s;" viewBox="0 0 22 38" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="11" cy="6" rx="5" ry="5.5" fill="#d4956a"/>
-  <rect x="7" y="11" width="8" height="14" rx="2" fill="#9c2d2d"/>
-  <rect x="4" y="12" width="4" height="10" rx="2" fill="#9c2d2d"/>
-  <rect x="14" y="12" width="4" height="10" rx="2" fill="#9c2d2d"/>
-  <rect x="7" y="24" width="3" height="10" rx="1.5" fill="#333"/>
-  <rect x="12" y="24" width="3" height="10" rx="1.5" fill="#222"/>
-  <ellipse cx="11" cy="5" rx="5.5" ry="3" fill="#1a0a00"/>
-</svg>
-<svg class="student walking" style="left:375px; top:1325px; z-index:60; animation-delay:.33s;" viewBox="0 0 22 38" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="11" cy="6" rx="5" ry="5.5" fill="#e8b89a"/>
-  <rect x="7" y="11" width="8" height="14" rx="2" fill="#2a7a3a"/>
-  <rect x="4" y="12" width="4" height="10" rx="2" fill="#2a7a3a"/>
-  <rect x="14" y="12" width="4" height="10" rx="2" fill="#2a7a3a"/>
-  <rect x="7" y="24" width="3" height="10" rx="1.5" fill="#111"/>
-  <rect x="12" y="24" width="3" height="10" rx="1.5" fill="#222"/>
-  <ellipse cx="11" cy="5" rx="5.5" ry="3" fill="#6b3a1f"/>
-</svg>
-<svg class="student walking" style="left:400px; top:1335px; z-index:60; animation-delay:.5s;" viewBox="0 0 22 38" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="11" cy="6" rx="5" ry="5.5" fill="#f0d4b8"/>
-  <rect x="7" y="11" width="8" height="14" rx="2" fill="#7b4a8a"/>
-  <rect x="4" y="12" width="4" height="10" rx="2" fill="#7b4a8a"/>
-  <rect x="14" y="12" width="4" height="10" rx="2" fill="#7b4a8a"/>
-  <rect x="7" y="24" width="3" height="10" rx="1.5" fill="#222"/>
-  <rect x="12" y="24" width="3" height="10" rx="1.5" fill="#333"/>
-  <ellipse cx="11" cy="5" rx="5.5" ry="3" fill="#b08050"/>
-</svg>
-
-<!-- NIVEL 1: PISO HORMIGON CENTRAL -->
-<img class="sprite" src="ASSETS/piso1.png" style="left:76px;  top:895px; width:135px; height:101px; z-index:10;" />
-<img class="sprite" src="ASSETS/piso2.png" style="left:174px; top:857px; width:135px; height:105px; z-index:10;" />
-<img class="sprite" src="ASSETS/piso3.png" style="left:272px; top:819px; width:132px; height:114px; z-index:10;" />
-<img class="sprite" src="ASSETS/piso4.png" style="left:370px; top:780px; width:135px; height:110px; z-index:10;" />
-<img class="sprite" src="ASSETS/piso5.png" style="left:468px; top:742px; width:132px; height:110px; z-index:10;" />
-<img class="sprite" src="ASSETS/piso6.png" style="left:566px; top:703px; width:135px; height:110px; z-index:10;" />
-<img class="sprite" src="ASSETS/piso7.png" style="left:664px; top:665px; width:135px; height:110px; z-index:10;" />
-<img class="sprite" src="ASSETS/piso1.png" style="left:762px; top:626px; width:135px; height:101px; z-index:10;" />
-<img class="sprite" src="ASSETS/piso2.png" style="left:76px;  top:980px; width:135px; height:105px; z-index:10;" />
-<img class="sprite" src="ASSETS/piso3.png" style="left:174px; top:942px; width:132px; height:114px; z-index:10;" />
-<img class="sprite" src="ASSETS/piso4.png" style="left:272px; top:903px; width:135px; height:110px; z-index:10;" />
-<img class="sprite" src="ASSETS/piso5.png" style="left:370px; top:865px; width:132px; height:110px; z-index:10;" />
-<img class="sprite" src="ASSETS/piso6.png" style="left:468px; top:826px; width:135px; height:110px; z-index:10;" />
-<img class="sprite" src="ASSETS/piso7.png" style="left:566px; top:788px; width:135px; height:110px; z-index:10;" />
-<img class="sprite" src="ASSETS/piso1.png" style="left:664px; top:749px; width:135px; height:101px; z-index:10;" />
-
-<!-- BORDES CESPED-PISO -->
-<img class="sprite" src="ASSETS/pisoycesped.png"  style="left:76px;  top:860px; width:135px; height:89px; z-index:9;" />
-<img class="sprite" src="ASSETS/pisoycesped1.png" style="left:174px; top:820px; width:135px; height:89px; z-index:9;" />
-<img class="sprite" src="ASSETS/pisoycesped2.png" style="left:272px; top:783px; width:135px; height:89px; z-index:9;" />
-<img class="sprite" src="ASSETS/pisoycesped3.png" style="left:370px; top:745px; width:135px; height:89px; z-index:9;" />
-<img class="sprite" src="ASSETS/pisoycesped4.png" style="left:468px; top:707px; width:135px; height:89px; z-index:9;" />
-
-<!-- CAMINOS CONECTORES NIVEL 1 -->
-<img class="sprite" src="ASSETS/pisolargo.png" style="left:295px; top:945px; width:359px; height:218px; z-index:11;" />
-<img class="sprite" src="ASSETS/pisolargo.png" style="left:575px; top:835px; width:359px; height:218px; z-index:11;" />
-
-<!-- BIBLIOTECA -->
-<img class="sprite" src="ASSETS/biblioteca.png"
-     style="left:46px; top:642px; width:469px; height:363px; z-index:80;" title="BIBLIOTECA" />
-
-<!-- MEDIOS DE COMUNICACION -->
-<img class="sprite" src="ASSETS/medios.png"
-     style="left:716px; top:742px; width:429px; height:368px; z-index:80;" title="MEDIOS DE COMUNICACION" />
-
-<!-- PAREDES BAJAS NIVEL 1 -->
-<img class="sprite" src="ASSETS/paredon.png" style="left:436px; top:923px; width:105px; height:102px; z-index:35;" />
-<img class="sprite" src="ASSETS/paredon.png" style="left:526px; top:887px; width:105px; height:102px; z-index:35;" />
-<img class="sprite" src="ASSETS/paredon.png" style="left:616px; top:851px; width:105px; height:102px; z-index:35;" />
-<img class="sprite" src="ASSETS/paredon.png" style="left:706px; top:815px; width:105px; height:102px; z-index:35;" />
-<img class="sprite" src="ASSETS/paredon.png" style="left:8px;   top:933px; width:105px; height:102px; z-index:35;" />
-<img class="sprite" src="ASSETS/paredon.png" style="left:8px;   top:843px; width:105px; height:102px; z-index:35;" />
-
-<!-- VEGETACION NIVEL 1 -->
-<img class="sprite" src="ASSETS/palmera1.png" style="left:446px; top:822px; width:78px; height:149px; z-index:55;" />
-<img class="sprite" src="ASSETS/palmera5.png" style="left:496px; top:847px; width:80px; height:140px; z-index:55;" />
-<img class="sprite" src="ASSETS/palmera.png"  style="left:546px; top:822px; width:83px; height:150px; z-index:55;" />
-<img class="sprite" src="ASSETS/palmera2.png" style="left:596px; top:797px; width:83px; height:140px; z-index:55;" />
-<img class="sprite" src="ASSETS/arbol.png"    style="left:14px;  top:782px; width:70px; height:114px; z-index:55;" />
-<img class="sprite" src="ASSETS/arbol2.png"   style="left:14px;  top:702px; width:80px; height:101px; z-index:55;" />
-<img class="sprite" src="ASSETS/arbol3.png"   style="left:666px; top:622px; width:74px; height:110px; z-index:55;" />
-<img class="sprite" src="ASSETS/arbol4.png"   style="left:1126px;top:752px; width:72px; height:108px; z-index:55;" />
-<img class="sprite" src="ASSETS/arbusto3.png" style="left:426px; top:872px; width:58px; height:52px;  z-index:50;" />
-<img class="sprite" src="ASSETS/arbusto4.png" style="left:686px; top:877px; width:45px; height:40px;  z-index:50;" />
-<img class="sprite" src="ASSETS/arbusto5.png" style="left:716px; top:902px; width:58px; height:52px;  z-index:50;" />
-<img class="sprite" src="ASSETS/maceta1.png"  style="left:686px; top:932px; width:118px; height:105px; z-index:50;" />
-<img class="sprite" src="ASSETS/maceta.png"   style="left:446px; top:962px; width:122px; height:110px; z-index:50;" />
-
-<!-- BANCOS NIVEL 1 -->
-<img class="sprite" src="ASSETS/banco.png"  style="left:356px; top:872px; width:81px; height:74px; z-index:52;" />
-<img class="sprite" src="ASSETS/banco1.png" style="left:586px; top:762px; width:79px; height:72px; z-index:52;" />
-<img class="sprite" src="ASSETS/banco2.png" style="left:636px; top:802px; width:68px; height:65px; z-index:52;" />
-
-<!-- PAPELERAS NIVEL 1 -->
-<img class="sprite" src="ASSETS/basurero.png"  style="left:551px; top:852px; width:51px; height:77px; z-index:53;" />
-<img class="sprite" src="ASSETS/basurero1.png" style="left:606px; top:830px; width:51px; height:74px; z-index:53;" />
-
-<!-- ESTUDIANTES NIVEL 1 -->
-<svg class="student walking" style="left:426px; top:902px; z-index:65; animation-delay:.1s;" viewBox="0 0 22 38" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="11" cy="6" rx="5" ry="5.5" fill="#c8955a"/>
-  <rect x="7" y="11" width="8" height="14" rx="2" fill="#4a4a9c"/>
-  <rect x="4" y="12" width="4" height="10" rx="2" fill="#4a4a9c"/>
-  <rect x="14" y="12" width="4" height="10" rx="2" fill="#4a4a9c"/>
-  <rect x="7" y="24" width="3" height="10" rx="1.5" fill="#111"/>
-  <rect x="12" y="24" width="3" height="10" rx="1.5" fill="#222"/>
-  <ellipse cx="11" cy="5" rx="5.5" ry="3" fill="#1a0a00"/>
-</svg>
-<svg class="student sitting" style="left:358px; top:877px; z-index:65;" viewBox="0 0 22 30" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="11" cy="6" rx="5" ry="5.5" fill="#f0c8a0"/>
-  <rect x="7" y="11" width="8" height="10" rx="2" fill="#2a6a2a"/>
-  <rect x="4" y="12" width="4" height="8"  rx="2" fill="#2a6a2a"/>
-  <rect x="14" y="12" width="4" height="8" rx="2" fill="#2a6a2a"/>
-  <rect x="6" y="20" width="4" height="7" rx="1.5" fill="#222" transform="rotate(20,8,23)"/>
-  <rect x="12" y="20" width="4" height="7" rx="1.5" fill="#222" transform="rotate(-20,14,23)"/>
-  <ellipse cx="11" cy="5" rx="5.5" ry="2.5" fill="#8B4513"/>
-</svg>
-<svg class="student sitting" style="left:382px; top:879px; z-index:65;" viewBox="0 0 22 30" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="11" cy="6" rx="5" ry="5.5" fill="#d4a070"/>
-  <rect x="7" y="11" width="8" height="10" rx="2" fill="#8a1a1a"/>
-  <rect x="4" y="12" width="4" height="8"  rx="2" fill="#8a1a1a"/>
-  <rect x="14" y="12" width="4" height="8" rx="2" fill="#8a1a1a"/>
-  <rect x="6" y="20" width="4" height="7" rx="1.5" fill="#111" transform="rotate(25,8,23)"/>
-  <rect x="12" y="20" width="4" height="7" rx="1.5" fill="#111" transform="rotate(-25,14,23)"/>
-  <ellipse cx="11" cy="5" rx="5.5" ry="2.5" fill="#3a1a05"/>
-</svg>
-<svg class="student walking" style="left:806px; top:972px; z-index:65; animation-delay:.25s;" viewBox="0 0 22 38" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="11" cy="6" rx="5" ry="5.5" fill="#f5dcc0"/>
-  <rect x="7" y="11" width="8" height="14" rx="2" fill="#5a8a5a"/>
-  <rect x="4" y="12" width="4" height="10" rx="2" fill="#5a8a5a"/>
-  <rect x="14" y="12" width="4" height="10" rx="2" fill="#5a8a5a"/>
-  <rect x="7" y="24" width="3" height="10" rx="1.5" fill="#333"/>
-  <rect x="12" y="24" width="3" height="10" rx="1.5" fill="#222"/>
-  <ellipse cx="11" cy="5" rx="5.5" ry="3" fill="#c09050"/>
-</svg>
-<svg class="student walking" style="left:836px; top:987px; z-index:65; animation-delay:.42s;" viewBox="0 0 22 38" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="11" cy="6" rx="5" ry="5.5" fill="#e8b0a0"/>
-  <rect x="7" y="11" width="8" height="14" rx="2" fill="#2a5a8a"/>
-  <rect x="4" y="12" width="4" height="10" rx="2" fill="#2a5a8a"/>
-  <rect x="14" y="12" width="4" height="10" rx="2" fill="#2a5a8a"/>
-  <rect x="7" y="24" width="3" height="10" rx="1.5" fill="#111"/>
-  <rect x="12" y="24" width="3" height="10" rx="1.5" fill="#222"/>
-  <ellipse cx="11" cy="5" rx="5.5" ry="3" fill="#1a0a00"/>
-</svg>
-
-<!-- NIVEL 2: CESPED SUPERIOR DERECHO -->
-<img class="sprite" src="ASSETS/cesped.png"  style="left:446px; top:485px; width:134px; height:103px; z-index:12;" />
-<img class="sprite" src="ASSETS/cesped1.png" style="left:544px; top:445px; width:134px; height:105px; z-index:12;" />
-<img class="sprite" src="ASSETS/cesped2.png" style="left:642px; top:405px; width:134px; height:96px;  z-index:12;" />
-<img class="sprite" src="ASSETS/cesped3.png" style="left:740px; top:366px; width:134px; height:95px;  z-index:12;" />
-<img class="sprite" src="ASSETS/cesped4.png" style="left:838px; top:328px; width:134px; height:95px;  z-index:12;" />
-<img class="sprite" src="ASSETS/cesped5.png" style="left:936px; top:290px; width:134px; height:95px;  z-index:12;" />
-<img class="sprite" src="ASSETS/cesped.png"  style="left:544px; top:535px; width:134px; height:103px; z-index:12;" />
-<img class="sprite" src="ASSETS/cesped1.png" style="left:642px; top:497px; width:134px; height:105px; z-index:12;" />
-<img class="sprite" src="ASSETS/cesped2.png" style="left:740px; top:459px; width:134px; height:96px;  z-index:12;" />
-<img class="sprite" src="ASSETS/cesped3.png" style="left:838px; top:421px; width:134px; height:95px;  z-index:12;" />
-<img class="sprite" src="ASSETS/cesped4.png" style="left:936px; top:383px; width:134px; height:95px;  z-index:12;" />
-<img class="sprite" src="ASSETS/pisolargo.png" style="left:796px; top:444px; width:359px; height:218px; z-index:13;" />
-
-<!-- GIMNASIO POLIDEPORTIVO -->
-<img class="sprite" src="ASSETS/gimnasio.png"
-     style="left:536px; top:182px; width:457px; height:360px; z-index:90;" title="Polideportivo UNLaM" />
-
-<!-- PAREDES NIVEL 2 -->
-<img class="sprite" src="ASSETS/paredon.png" style="left:446px; top:532px; width:105px; height:102px; z-index:38;" />
-<img class="sprite" src="ASSETS/paredon.png" style="left:536px; top:496px; width:105px; height:102px; z-index:38;" />
-<img class="sprite" src="ASSETS/paredon.png" style="left:996px; top:382px; width:105px; height:102px; z-index:38;" />
-<img class="sprite" src="ASSETS/paredon.png" style="left:1076px;top:346px; width:105px; height:102px; z-index:38;" />
-
-<!-- VEGETACION NIVEL 2 -->
-<img class="sprite" src="ASSETS/arbol.png"   style="left:416px; top:392px; width:70px; height:114px; z-index:55;" />
-<img class="sprite" src="ASSETS/arbol5.png"  style="left:1146px;top:312px; width:70px; height:108px; z-index:55;" />
-<img class="sprite" src="ASSETS/arbol1.png"  style="left:476px;  top:432px; width:73px; height:115px; z-index:55;" />
-<img class="sprite" src="ASSETS/arbusto6.png" style="left:1036px;top:462px; width:50px; height:45px;  z-index:50;" />
-<img class="sprite" src="ASSETS/arbusto1.png" style="left:1086px;top:442px; width:51px; height:43px;  z-index:50;" />
-
-<!-- BANCOS Y PAPELERAS NIVEL 2 -->
-<img class="sprite" src="ASSETS/banco.png"    style="left:1036px; top:402px; width:81px; height:74px; z-index:55;" />
-<img class="sprite" src="ASSETS/basurero.png" style="left:996px;  top:432px; width:51px; height:77px; z-index:55;" />
-
-<!-- ESTUDIANTES NIVEL 2 -->
-<svg class="student walking" style="left:1046px; top:512px; z-index:95; animation-delay:.05s;" viewBox="0 0 22 38" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="11" cy="6" rx="5" ry="5.5" fill="#f5c59a"/>
-  <rect x="7" y="11" width="8" height="14" rx="2" fill="#9c5a2a"/>
-  <rect x="4" y="12" width="4" height="10" rx="2" fill="#9c5a2a"/>
-  <rect x="14" y="12" width="4" height="10" rx="2" fill="#9c5a2a"/>
-  <rect x="7" y="24" width="3" height="10" rx="1.5" fill="#333"/>
-  <rect x="12" y="24" width="3" height="10" rx="1.5" fill="#222"/>
-  <ellipse cx="11" cy="5" rx="5.5" ry="3" fill="#4a2c10"/>
-</svg>
-<svg class="student walking" style="left:1076px; top:502px; z-index:95; animation-delay:.2s;" viewBox="0 0 22 38" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="11" cy="6" rx="5" ry="5.5" fill="#d4956a"/>
-  <rect x="7" y="11" width="8" height="14" rx="2" fill="#2a4a8a"/>
-  <rect x="4" y="12" width="4" height="10" rx="2" fill="#2a4a8a"/>
-  <rect x="14" y="12" width="4" height="10" rx="2" fill="#2a4a8a"/>
-  <rect x="7" y="24" width="3" height="10" rx="1.5" fill="#111"/>
-  <rect x="12" y="24" width="3" height="10" rx="1.5" fill="#222"/>
-  <ellipse cx="11" cy="5" rx="5.5" ry="3" fill="#1a0800"/>
-</svg>
-<svg class="student walking" style="left:1106px; top:492px; z-index:95; animation-delay:.37s;" viewBox="0 0 22 38" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="11" cy="6" rx="5" ry="5.5" fill="#f0c8a0"/>
-  <rect x="7" y="11" width="8" height="14" rx="2" fill="#5a2a7a"/>
-  <rect x="4" y="12" width="4" height="10" rx="2" fill="#5a2a7a"/>
-  <rect x="14" y="12" width="4" height="10" rx="2" fill="#5a2a7a"/>
-  <rect x="7" y="24" width="3" height="10" rx="1.5" fill="#222"/>
-  <rect x="12" y="24" width="3" height="10" rx="1.5" fill="#333"/>
-  <ellipse cx="11" cy="5" rx="5.5" ry="3" fill="#8b5020"/>
-</svg>
-<svg class="student sitting" style="left:1038px; top:410px; z-index:95;" viewBox="0 0 22 30" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="11" cy="6" rx="5" ry="5.5" fill="#e8d0b0"/>
-  <rect x="7" y="11" width="8" height="10" rx="2" fill="#3a7a5a"/>
-  <rect x="4" y="12" width="4" height="8" rx="2" fill="#3a7a5a"/>
-  <rect x="14" y="12" width="4" height="8" rx="2" fill="#3a7a5a"/>
-  <rect x="6" y="20" width="4" height="7" rx="1.5" fill="#111" transform="rotate(20,8,23)"/>
-  <rect x="12" y="20" width="4" height="7" rx="1.5" fill="#111" transform="rotate(-20,14,23)"/>
-  <ellipse cx="11" cy="5" rx="5.5" ry="2.5" fill="#6b3010"/>
-</svg>
-<svg class="student sitting" style="left:1063px; top:404px; z-index:95;" viewBox="0 0 22 30" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="11" cy="6" rx="5" ry="5.5" fill="#c89060"/>
-  <rect x="7" y="11" width="8" height="10" rx="2" fill="#8a2a2a"/>
-  <rect x="4" y="12" width="4" height="8" rx="2" fill="#8a2a2a"/>
-  <rect x="14" y="12" width="4" height="8" rx="2" fill="#8a2a2a"/>
-  <rect x="6" y="20" width="4" height="7" rx="1.5" fill="#222" transform="rotate(22,8,23)"/>
-  <rect x="12" y="20" width="4" height="7" rx="1.5" fill="#222" transform="rotate(-22,14,23)"/>
-  <ellipse cx="11" cy="5" rx="5.5" ry="2.5" fill="#1a0a00"/>
-</svg>
-<svg class="student walking" style="left:966px; top:552px; z-index:95; animation-delay:.6s;" viewBox="0 0 22 38" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="11" cy="6" rx="5" ry="5.5" fill="#f5e0c0"/>
-  <rect x="7" y="11" width="8" height="14" rx="2" fill="#2a7a4a"/>
-  <rect x="4" y="12" width="4" height="10" rx="2" fill="#2a7a4a"/>
-  <rect x="14" y="12" width="4" height="10" rx="2" fill="#2a7a4a"/>
-  <rect x="7" y="24" width="3" height="10" rx="1.5" fill="#333"/>
-  <rect x="12" y="24" width="3" height="10" rx="1.5" fill="#222"/>
-  <ellipse cx="11" cy="5" rx="5.5" ry="3" fill="#a06030"/>
-</svg>
-
-<!-- CESPED ESQUINA INFERIOR DERECHA -->
-<img class="sprite" src="ASSETS/cesped.png"  style="left:816px; top:1082px; width:134px; height:103px; z-index:8;" />
-<img class="sprite" src="ASSETS/cesped1.png" style="left:916px; top:1044px; width:134px; height:105px; z-index:8;" />
-<img class="sprite" src="ASSETS/cesped2.png" style="left:1016px;top:1006px; width:134px; height:96px;  z-index:8;" />
-<img class="sprite" src="ASSETS/cesped3.png" style="left:1116px;top:968px;  width:134px; height:95px;  z-index:8;" />
-<img class="sprite" src="ASSETS/arbol4.png"  style="left:1176px;top:952px;  width:72px; height:108px; z-index:45;" />
-<img class="sprite" src="ASSETS/arbol5.png"  style="left:1196px;top:872px;  width:70px; height:108px; z-index:45;" />
-
+<div id="viewport">
+  <div id="scene"></div>
 </div>
-</div>
+
+<div id="compass">🧭</div>
+
+<div id="tooltip">
+  <div id="tt-name"></div>
+  <div class="tt-sub" id="tt-sub"></div>
 </div>
 
 <div id="legend">
-  <div style="font-weight:700; font-size:13px; color:#7fff7f; margin-bottom:6px;">Leyenda del Campus</div>
-  <div>Arco - Entrada Principal</div>
-  <div>Biblioteca</div>
-  <div>Medios de Comunicacion</div>
-  <div>Polideportivo</div>
-  <div>Palmeras / Arboles</div>
-  <div>Bancos / Papeleras</div>
-  <div>Estudiantes</div>
-  <hr style="border-color:rgba(255,255,255,.2); margin:6px 0;"/>
-  <div style="color:#aaa; font-size:11px;">Ctrl+Scroll para zoom</div>
+  <div class="leg-title">Campus UNLaM</div>
+  <div class="leg-item"><span class="leg-dot" style="background:#e8c060"></span>Entrada Principal</div>
+  <div class="leg-item"><span class="leg-dot" style="background:#6a9fd8"></span>Biblioteca</div>
+  <div class="leg-item"><span class="leg-dot" style="background:#8bcf8b"></span>Polideportivo</div>
+  <div class="leg-item"><span class="leg-dot" style="background:#d87a6a"></span>Medios de Comunicación</div>
+  <div class="leg-item"><span class="leg-dot" style="background:#c88bd8"></span>Polo Tecnológico</div>
+  <div class="leg-item"><span class="leg-dot" style="background:#d8a86a"></span>Teatro Universidad</div>
+  <div class="leg-item"><span class="leg-dot" style="background:#6ad8d8"></span>Estudiantes</div>
+  <hr/>
+  <div class="leg-hint">Hover sobre edificios · Flechas o arrastrá para mover</div>
 </div>
 
 <script>
-  let currentScale = 1.0;
-  const wrapper = document.getElementById('scene-wrapper');
-  const label   = document.getElementById('zoom-label');
-  function zoom(delta) {
-    currentScale = Math.max(0.3, Math.min(2.0, currentScale + delta));
-    applyZoom();
+// ═══════════════════════════════════════════════════════
+//  ISO GRID ENGINE
+// ═══════════════════════════════════════════════════════
+const TW = 134;   // tile diamond width
+const TH = 67;    // tile diamond height (TW/2)
+
+function iso(col, row) {
+  return {
+    x: (col - row) * (TW / 2),
+    y: (col + row) * (TH / 2)
+  };
+}
+
+const COLS = 14;
+const ROWS = 11;
+
+// 'g' = grass, 'p' = path/concrete
+const GRID = [
+  ['g','g','g','g','g','g','g','g','g','g','g','g','g','g'],
+  ['g','g','g','g','g','g','g','g','g','g','g','g','g','g'],
+  ['g','g','g','p','p','p','p','p','p','p','g','g','g','g'],
+  ['g','g','p','p','p','p','p','p','p','p','p','g','g','g'],
+  ['g','g','p','p','p','p','p','p','p','p','p','p','g','g'],
+  ['g','g','p','p','p','p','p','p','p','p','p','p','p','g'],
+  ['g','g','p','p','p','p','p','p','p','p','p','p','p','g'],
+  ['g','g','p','p','p','p','p','p','p','p','p','p','g','g'],
+  ['g','g','g','p','p','p','p','p','p','p','p','g','g','g'],
+  ['g','g','g','g','p','p','p','p','p','g','g','g','g','g'],
+  ['g','g','g','g','g','g','g','g','g','g','g','g','g','g'],
+];
+
+const GRASS = ['cesped.png','cesped1.png','cesped2.png','cesped3.png','cesped4.png','cesped5.png'];
+const ROAD  = ['piso1.png','piso2.png','piso3.png','piso4.png','piso5.png','piso6.png','piso7.png'];
+
+const BUILDINGS = [
+  { src:'puerta.png',    name:'Arco – Entrada Principal',   sub:'Acceso principal al campus UNLaM',           col:8.5,  row:9.5,  w:400, h:245, ax:0.5,  ay:0.82, zb:10 },
+  { src:'biblioteca.png',name:'Biblioteca',                 sub:'Centro de documentación y estudios',          col:3.5,  row:4.5,  w:340, h:264, ax:0.5,  ay:0.85, zb:20 },
+  { src:'gimnasio.png',  name:'Polideportivo',              sub:'Canchas de básquet, vóley y fútbol',          col:9.5,  row:3.5,  w:380, h:300, ax:0.5,  ay:0.88, zb:25 },
+  { src:'medios.png',    name:'Medios de Comunicación',     sub:'Facultad de Comunicación Social',             col:5.5,  row:6.5,  w:310, h:266, ax:0.5,  ay:0.85, zb:20 },
+  { src:'polo.png',      name:'Polo Tecnológico',           sub:'Facultad de Ingeniería e Informática',        col:7.5,  row:5.5,  w:320, h:246, ax:0.5,  ay:0.85, zb:20 },
+  { src:'teatro.png',    name:'Teatro Universidad',         sub:'Espacio cultural y de artes escénicas',       col:4.5,  row:7.5,  w:330, h:258, ax:0.5,  ay:0.85, zb:18 },
+];
+
+const DECOS = [
+  // trees – perimeter
+  { src:'arbol.png',    col:1.5,  row:2.5,  w:60,  h:98,  z:5 },
+  { src:'arbol1.png',  col:2.5,  row:1.5,  w:62,  h:100, z:5 },
+  { src:'arbol2.png',  col:3.5,  row:0.5,  w:68,  h:88,  z:5 },
+  { src:'arbol3.png',  col:6.5,  row:0.5,  w:64,  h:96,  z:5 },
+  { src:'arbol4.png',  col:9.5,  row:0.5,  w:62,  h:94,  z:5 },
+  { src:'arbol5.png',  col:12.5, row:2.5,  w:60,  h:94,  z:5 },
+  { src:'arbol.png',   col:13.5, row:4.5,  w:62,  h:98,  z:5 },
+  { src:'arbol1.png',  col:13.5, row:7.5,  w:60,  h:100, z:5 },
+  { src:'arbol2.png',  col:11.5, row:9.5,  w:68,  h:88,  z:5 },
+  { src:'arbol3.png',  col:1.5,  row:8.5,  w:64,  h:96,  z:5 },
+  { src:'arbol4.png',  col:1.5,  row:5.5,  w:62,  h:94,  z:5 },
+  { src:'arbol5.png',  col:0.5,  row:3.5,  w:60,  h:94,  z:5 },
+  // palms
+  { src:'palmera.png',  col:5.5,  row:8.5,  w:70,  h:128, z:8 },
+  { src:'palmera1.png', col:6.5,  row:8.5,  w:66,  h:122, z:8 },
+  { src:'palmera2.png', col:7.5,  row:8.5,  w:70,  h:120, z:8 },
+  { src:'palmera3.png', col:8.5,  row:7.5,  w:66,  h:120, z:8 },
+  { src:'palmera4.png', col:3.2,  row:8.0,  w:64,  h:112, z:8 },
+  { src:'palmera5.png', col:10.5, row:7.5,  w:68,  h:118, z:8 },
+  // bushes
+  { src:'arbusto.png',  col:5.0,  row:9.0,  w:52,  h:46,  z:6 },
+  { src:'arbusto1.png', col:7.0,  row:9.2,  w:44,  h:38,  z:6 },
+  { src:'arbusto2.png', col:9.0,  row:8.8,  w:52,  h:46,  z:6 },
+  { src:'arbusto3.png', col:3.0,  row:5.5,  w:50,  h:44,  z:6 },
+  { src:'arbusto4.png', col:11.5, row:5.0,  w:40,  h:36,  z:6 },
+  { src:'arbusto5.png', col:12.0, row:6.0,  w:50,  h:44,  z:6 },
+  { src:'arbusto6.png', col:6.5,  row:2.5,  w:44,  h:38,  z:6 },
+  // benches
+  { src:'banco.png',    col:6.8,  row:9.3,  w:70,  h:64,  z:7 },
+  { src:'banco1.png',   col:8.2,  row:8.5,  w:68,  h:62,  z:7 },
+  { src:'banco2.png',   col:5.2,  row:3.5,  w:58,  h:56,  z:7 },
+  // bins
+  { src:'basurero.png',  col:6.3,  row:9.0,  w:44,  h:66,  z:7 },
+  { src:'basurero1.png', col:8.6,  row:8.8,  w:44,  h:64,  z:7 },
+  // pots
+  { src:'maceta.png',   col:2.5,  row:9.0,  w:104, h:94,  z:7 },
+  { src:'maceta1.png',  col:11.0, row:4.5,  w:100, h:90,  z:7 },
+  // walls
+  { src:'paredon.png',  col:3.5,  row:9.5,  w:92,  h:90,  z:6 },
+  { src:'paredon.png',  col:9.5,  row:9.5,  w:92,  h:90,  z:6 },
+  { src:'paredon.png',  col:2.2,  row:7.8,  w:92,  h:90,  z:6 },
+  { src:'paredon.png',  col:11.8, row:7.2,  w:92,  h:90,  z:6 },
+];
+
+const STUDENTS = [
+  { col:7.5,  row:9.0,  skin:'#f5c59a', shirt:'#3a6bc9', hair:'#4a2c10', cls:'sw1' },
+  { col:8.0,  row:9.2,  skin:'#d4956a', shirt:'#9c2d2d', hair:'#1a0a00', cls:'sw2' },
+  { col:6.8,  row:9.5,  skin:'#e8b89a', shirt:'#2a7a3a', hair:'#6b3a1f', cls:'sw3' },
+  { col:7.2,  row:9.6,  skin:'#f0d4b8', shirt:'#7b4a8a', hair:'#b08050', cls:'sw1' },
+  { col:5.5,  row:6.8,  skin:'#c8955a', shirt:'#4a4a9c', hair:'#1a0a00', cls:'sw2' },
+  { col:6.0,  row:7.0,  skin:'#f0c8a0', shirt:'#2a6a2a', hair:'#8B4513', cls:'sw3' },
+  { col:9.5,  row:6.5,  skin:'#f5dcc0', shirt:'#5a8a5a', hair:'#c09050', cls:'sw1' },
+  { col:10.0, row:6.6,  skin:'#e8b0a0', shirt:'#2a5a8a', hair:'#1a0a00', cls:'sw2' },
+  { col:4.0,  row:7.5,  skin:'#d4a070', shirt:'#8a1a1a', hair:'#3a1a05', cls:'sw3' },
+];
+
+// ── RENDER ──
+const scene = document.getElementById('scene');
+const OX = COLS * (TW / 2) + 80;   // screen origin X (center diamond)
+const OY = 60;                       // screen origin Y (top padding)
+
+function px(col, row) {
+  const p = iso(col, row);
+  return { x: p.x + OX, y: p.y + OY };
+}
+
+const scenePxW = (COLS + ROWS) * (TW / 2) + 300;
+const scenePxH = (COLS + ROWS) * (TH / 2) + 300;
+scene.style.width  = scenePxW + 'px';
+scene.style.height = scenePxH + 'px';
+
+// Ground tiles
+for (let r = 0; r < ROWS; r++) {
+  for (let c = 0; c < COLS; c++) {
+    const cell = GRID[r][c];
+    const { x, y } = px(c, r);
+    const el = document.createElement('img');
+    el.className = 'tile';
+    el.src = 'ASSETS/' + (cell === 'g'
+      ? GRASS[(c * 3 + r * 7) % GRASS.length]
+      : ROAD[(c + r) % ROAD.length]);
+    el.style.cssText = `left:${x - TW/2}px;top:${y}px;width:${TW}px;height:${TH+14}px;z-index:${(c+r)*2};`;
+    scene.appendChild(el);
   }
-  function resetZoom() { currentScale = 1.0; applyZoom(); }
-  function applyZoom() {
-    wrapper.style.transform = `scale(${currentScale})`;
-    label.textContent = Math.round(currentScale * 100) + '%';
-  }
-  document.getElementById('scene-container').addEventListener('wheel', (e) => {
-    if (e.ctrlKey || e.metaKey) { e.preventDefault(); zoom(e.deltaY < 0 ? 0.05 : -0.05); }
-  }, { passive: false });
-  window.addEventListener('load', () => {
-    const vw = window.innerWidth;
-    if (vw < 1380) { currentScale = (vw - 40) / 1340; applyZoom(); }
-  });
+}
+
+// Decorations
+DECOS.forEach(d => {
+  const { x, y } = px(d.col, d.row);
+  const el = document.createElement('img');
+  el.className = 'tile';
+  el.src = 'ASSETS/' + d.src;
+  const z = (Math.floor(d.col) + Math.floor(d.row)) * 2 + (d.z || 5);
+  el.style.cssText = `left:${x-d.w/2}px;top:${y-d.h+TH/2}px;width:${d.w}px;height:${d.h}px;z-index:${z};`;
+  scene.appendChild(el);
+});
+
+// Buildings
+BUILDINGS.forEach(b => {
+  const { x, y } = px(b.col, b.row);
+  const el = document.createElement('img');
+  el.className = 'building';
+  el.src = 'ASSETS/' + b.src;
+  const z = (Math.floor(b.col) + Math.floor(b.row)) * 2 + 50 + (b.zb || 0);
+  el.style.cssText = `left:${x-b.w*b.ax}px;top:${y-b.h*b.ay}px;width:${b.w}px;height:${b.h}px;z-index:${z};`;
+  el.addEventListener('mouseenter', e => showTip(e, b.name, b.sub));
+  el.addEventListener('mousemove', moveTip);
+  el.addEventListener('mouseleave', hideTip);
+  scene.appendChild(el);
+});
+
+// Students
+function studentSVG(skin, shirt, hair) {
+  return `<svg viewBox="0 0 22 38" width="24" height="42" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="11" cy="6" rx="5" ry="5.5" fill="${skin}"/>
+    <rect x="7" y="11" width="8" height="14" rx="2" fill="${shirt}"/>
+    <rect x="4" y="12" width="4" height="10" rx="2" fill="${shirt}"/>
+    <rect x="14" y="12" width="4" height="10" rx="2" fill="${shirt}"/>
+    <rect x="7" y="24" width="3" height="10" rx="1.5" fill="#222"/>
+    <rect x="12" y="24" width="3" height="10" rx="1.5" fill="#333"/>
+    <ellipse cx="11" cy="5" rx="5.5" ry="3" fill="${hair}"/>
+  </svg>`;
+}
+STUDENTS.forEach(s => {
+  const { x, y } = px(s.col, s.row);
+  const el = document.createElement('div');
+  el.className = 'student ' + s.cls;
+  el.innerHTML = studentSVG(s.skin, s.shirt, s.hair);
+  const z = (Math.floor(s.col) + Math.floor(s.row)) * 2 + 80;
+  el.style.cssText = `left:${x-12}px;top:${y-38+TH/2}px;z-index:${z};`;
+  scene.appendChild(el);
+});
+
+// ── TOOLTIP ──
+const tooltip = document.getElementById('tooltip');
+const ttName  = document.getElementById('tt-name');
+const ttSub   = document.getElementById('tt-sub');
+function showTip(e, name, sub) { ttName.textContent=name; ttSub.textContent=sub||''; tooltip.classList.add('visible'); moveTip(e); }
+function moveTip(e) {
+  let tx=e.clientX+14, ty=e.clientY-14;
+  if(tx+260>window.innerWidth) tx=e.clientX-270;
+  tooltip.style.left=tx+'px'; tooltip.style.top=ty+'px';
+}
+function hideTip() { tooltip.classList.remove('visible'); }
+
+// ── PAN & ZOOM ──
+const viewport = document.getElementById('viewport');
+let scale=1, panX=0, panY=0, dragging=false, lx=0, ly=0;
+
+function applyT() {
+  scene.style.transform=`translate(${panX}px,${panY}px) scale(${scale})`;
+  document.getElementById('zoom-label').textContent=Math.round(scale*100)+'%';
+}
+function centerView() {
+  const vw=window.innerWidth, vh=window.innerHeight-56;
+  const cx = OX + (COLS/2-ROWS/2)*(TW/2);
+  const cy = OY + (COLS+ROWS)/2*(TH/2);
+  panX=vw/2-cx*scale; panY=vh/2-cy*scale; applyT();
+}
+function zoomBy(d) {
+  const vw=window.innerWidth, vh=window.innerHeight-56;
+  const prev=scale;
+  scale=Math.max(0.25,Math.min(2.5,scale+d));
+  panX=vw/2-(vw/2-panX)*(scale/prev);
+  panY=vh/2-(vh/2-panY)*(scale/prev);
+  applyT();
+}
+function resetView() { scale=1; centerView(); }
+
+window.addEventListener('load',()=>{
+  const vw=window.innerWidth, vh=window.innerHeight-56;
+  const fitW=vw/scenePxW*0.85, fitH=vh/scenePxH*0.85;
+  scale=Math.min(1,fitW,fitH);
+  centerView();
+});
+
+// drag
+viewport.addEventListener('mousedown',e=>{ if(e.button!==0)return; dragging=true; lx=e.clientX; ly=e.clientY; viewport.classList.add('dragging'); });
+window.addEventListener('mousemove',e=>{ if(!dragging)return; panX+=e.clientX-lx; panY+=e.clientY-ly; lx=e.clientX; ly=e.clientY; applyT(); });
+window.addEventListener('mouseup',()=>{ dragging=false; viewport.classList.remove('dragging'); });
+
+// touch
+viewport.addEventListener('touchstart',e=>{ if(e.touches.length===1){dragging=true;lx=e.touches[0].clientX;ly=e.touches[0].clientY;} },{passive:true});
+window.addEventListener('touchmove',e=>{ if(!dragging||e.touches.length!==1)return; panX+=e.touches[0].clientX-lx; panY+=e.touches[0].clientY-ly; lx=e.touches[0].clientX; ly=e.touches[0].clientY; applyT(); },{passive:true});
+window.addEventListener('touchend',()=>dragging=false);
+
+// scroll zoom
+viewport.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const prev=scale, d=e.deltaY<0?0.08:-0.08;
+  scale=Math.max(0.25,Math.min(2.5,scale+d));
+  const r=viewport.getBoundingClientRect();
+  const mx=e.clientX-r.left, my=e.clientY-r.top;
+  panX=mx-(mx-panX)*(scale/prev); panY=my-(my-panY)*(scale/prev);
+  applyT();
+},{passive:false});
+
+// keyboard
+window.addEventListener('keydown',e=>{
+  const s=60;
+  if(e.key==='ArrowLeft') {panX+=s;applyT();}
+  if(e.key==='ArrowRight'){panX-=s;applyT();}
+  if(e.key==='ArrowUp')   {panY+=s;applyT();}
+  if(e.key==='ArrowDown') {panY-=s;applyT();}
+  if(e.key==='+'||e.key==='=') zoomBy(0.1);
+  if(e.key==='-') zoomBy(-0.1);
+  if(e.key==='0') resetView();
+});
 </script>
 </body>
 </html>
