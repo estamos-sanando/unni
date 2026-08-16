@@ -606,13 +606,288 @@ const ASSETS=[
 // ═══════════════════════════════════════════
 //  ISO GRID
 // ═══════════════════════════════════════════
-const TW=134, TH=67, COLS=16, ROWS=16;
-const OX=COLS*(TW/2)+100, OY=100;
+// Tile dimensions: TW=diamond width, TH=diamond half-height, TS=side depth
+const TW=134, TH=67, TS=20, COLS=16, ROWS=16;
+const OX=COLS*(TW/2)+100, OY=100+TS;
 
 function isoXY(c,r){ return { x:(c-r)*(TW/2)+OX, y:(c+r)*(TH/2)+OY }; }
 function screenToCell(sx,sy){
   const rx=sx-OX, ry=sy-OY;
   return { col:Math.round((rx/(TW/2)+ry/(TH/2))/2), row:Math.round((ry/(TH/2)-rx/(TW/2))/2) };
+}
+
+// ═══════════════════════════════════════════
+//  PROCEDURAL TILE GENERATOR
+//  Draws isometric tiles on a canvas matching
+//  the reference image style.
+// ═══════════════════════════════════════════
+
+/**
+ * Draw an isometric tile to a canvas.
+ * Diamond: top face + left side + right side
+ * @param {string} type  'grass' | 'path'
+ * @param {number} variant  0-3
+ * @returns {string} data URL PNG
+ */
+function genTile(type, variant) {
+  const W = TW * 2, H = (TH + TS + 4) * 2; // 2x for retina crispness
+  const tw = TW * 2, th = TH * 2, ts = TS * 2;
+  const cx = W / 2;
+
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+
+  // Diamond top-face points (x,y)
+  //  top: (cx, 0)
+  //  right: (W, th/2)
+  //  bottom: (cx, th)
+  //  left: (0, th/2)
+  const top   = [cx, 0];
+  const right = [W,  th/2];
+  const bot   = [cx, th];
+  const left  = [0,  th/2];
+
+  // Side points (bottom edges drop by ts)
+  const botL  = [left[0],  left[1]  + ts];
+  const botR  = [right[0], right[1] + ts];
+  const botB  = [bot[0],   bot[1]   + ts];
+
+  if (type === 'grass') {
+    // ── TOP FACE: grass ──────────────────────
+    const grassColors = [
+      ['#52b84a','#5dc054','#48b040','#60c660'],
+      ['#4ab044','#58bc50','#44a83e','#5aba52'],
+      ['#46a840','#52b04c','#3ea038','#58b84e'],
+      ['#4eb24a','#5cbc56','#46aa42','#62c45e'],
+    ];
+    const gc = grassColors[variant % 4];
+
+    // Base gradient
+    const topGrad = ctx.createLinearGradient(0, 0, W, th);
+    topGrad.addColorStop(0,   gc[0]);
+    topGrad.addColorStop(0.4, gc[1]);
+    topGrad.addColorStop(0.7, gc[2]);
+    topGrad.addColorStop(1,   gc[3]);
+
+    ctx.beginPath();
+    ctx.moveTo(...top); ctx.lineTo(...right);
+    ctx.lineTo(...bot); ctx.lineTo(...left);
+    ctx.closePath();
+    ctx.fillStyle = topGrad;
+    ctx.fill();
+
+    // Texture: random grass blades
+    ctx.save();
+    ctx.clip();
+    const rng = mulberry32(variant * 1234 + 99);
+    for (let i = 0; i < 80; i++) {
+      const t = rng();
+      const u = rng();
+      // Convert parametric (t,u) inside diamond to screen coords
+      const gx = (t - u) * (tw/2) + cx;
+      const gy = (t + u) * (th/2);
+      const len = 4 + rng() * 6;
+      const angle = -Math.PI/2 + (rng()-0.5)*0.8;
+      const alpha = 0.25 + rng()*0.3;
+      ctx.strokeStyle = `rgba(30,100,20,${alpha})`;
+      ctx.lineWidth = 1 + rng()*1.5;
+      ctx.beginPath();
+      ctx.moveTo(gx, gy);
+      ctx.lineTo(gx + Math.cos(angle)*len, gy + Math.sin(angle)*len);
+      ctx.stroke();
+    }
+    // Small lighter/darker patches
+    for (let i = 0; i < 5; i++) {
+      const t = 0.1 + rng()*0.8;
+      const u = 0.1 + rng()*0.8;
+      const gx = (t - u) * (tw/2) + cx;
+      const gy = (t + u) * (th/2);
+      const r2 = 8 + rng()*14;
+      const pg = ctx.createRadialGradient(gx,gy,0,gx,gy,r2);
+      const bright = rng() > 0.5;
+      pg.addColorStop(0, bright ? 'rgba(120,220,80,.18)' : 'rgba(20,80,10,.15)');
+      pg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = pg;
+      ctx.fillRect(gx-r2, gy-r2, r2*2, r2*2);
+    }
+    ctx.restore();
+
+    // Top face outline
+    ctx.beginPath();
+    ctx.moveTo(...top); ctx.lineTo(...right);
+    ctx.lineTo(...bot); ctx.lineTo(...left);
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(30,90,20,.5)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // ── LEFT SIDE: dark brown soil ───────────
+    ctx.beginPath();
+    ctx.moveTo(...left); ctx.lineTo(...bot);
+    ctx.lineTo(...botB); ctx.lineTo(...botL);
+    ctx.closePath();
+    const leftGrad = ctx.createLinearGradient(0, th/2, cx, th+ts);
+    leftGrad.addColorStop(0,   '#7a4c1e');
+    leftGrad.addColorStop(0.3, '#8a5828');
+    leftGrad.addColorStop(1,   '#5a3810');
+    ctx.fillStyle = leftGrad;
+    ctx.fill();
+    // soil texture lines
+    ctx.save(); ctx.clip();
+    const rng2 = mulberry32(variant * 567 + 11);
+    for (let i = 0; i < 12; i++) {
+      const yy = th/2 + ts * (i/12);
+      ctx.strokeStyle = `rgba(40,20,5,${0.1+rng2()*0.15})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0,yy); ctx.lineTo(cx,yy+ts*0.5); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.beginPath();
+    ctx.moveTo(...left); ctx.lineTo(...bot); ctx.lineTo(...botB); ctx.lineTo(...botL); ctx.closePath();
+    ctx.strokeStyle='rgba(30,15,5,.6)'; ctx.lineWidth=1; ctx.stroke();
+
+    // ── RIGHT SIDE: slightly lighter brown ───
+    ctx.beginPath();
+    ctx.moveTo(...bot); ctx.lineTo(...right);
+    ctx.lineTo(...botR); ctx.lineTo(...botB);
+    ctx.closePath();
+    const rightGrad = ctx.createLinearGradient(cx, th, W, th/2+ts);
+    rightGrad.addColorStop(0,   '#8a5828');
+    rightGrad.addColorStop(1,   '#6a4018');
+    ctx.fillStyle = rightGrad;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(...bot); ctx.lineTo(...right); ctx.lineTo(...botR); ctx.lineTo(...botB); ctx.closePath();
+    ctx.strokeStyle='rgba(30,15,5,.6)'; ctx.lineWidth=1; ctx.stroke();
+
+  } else { // PATH / CONCRETE
+
+    const pathColors = [
+      ['#a0a0a0','#969696','#aaaaaa','#9c9c9c'],
+      ['#a8a4a0','#9e9a96','#b0acaa','#a4a09c'],
+      ['#969290','#8e8a88','#9e9a98','#929090'],
+      ['#9c9896','#929090','#a4a09e','#989694'],
+    ];
+    const pc = pathColors[variant % 4];
+
+    // Top face
+    const topGrad = ctx.createLinearGradient(0, 0, W, th);
+    topGrad.addColorStop(0, pc[0]);
+    topGrad.addColorStop(0.5, pc[1]);
+    topGrad.addColorStop(1, pc[2]);
+    ctx.beginPath();
+    ctx.moveTo(...top); ctx.lineTo(...right);
+    ctx.lineTo(...bot); ctx.lineTo(...left);
+    ctx.closePath();
+    ctx.fillStyle = topGrad;
+    ctx.fill();
+
+    // Cracks & stains
+    ctx.save(); ctx.clip();
+    const rng3 = mulberry32(variant * 8321 + 42);
+    for (let i = 0; i < 6; i++) {
+      const t = 0.1 + rng3()*0.8, u = 0.1+rng3()*0.8;
+      const x1 = (t-u)*(tw/2)+cx, y1=(t+u)*(th/2);
+      const len = 10+rng3()*30;
+      const angle = rng3()*Math.PI;
+      ctx.strokeStyle=`rgba(60,60,60,${0.08+rng3()*0.12})`;
+      ctx.lineWidth=1+rng3();
+      ctx.beginPath();
+      ctx.moveTo(x1,y1);
+      const mx=x1+Math.cos(angle)*len*0.4, my=y1+Math.sin(angle)*len*0.3;
+      ctx.lineTo(mx+(rng3()-0.5)*10, my+(rng3()-0.5)*6);
+      ctx.lineTo(x1+Math.cos(angle)*len, y1+Math.sin(angle)*len);
+      ctx.stroke();
+    }
+    // stain patches
+    for(let i=0;i<3;i++){
+      const t=0.1+rng3()*0.8, u=0.1+rng3()*0.8;
+      const gx=(t-u)*(tw/2)+cx, gy=(t+u)*(th/2);
+      const r2=6+rng3()*20;
+      const pg=ctx.createRadialGradient(gx,gy,0,gx,gy,r2);
+      pg.addColorStop(0,'rgba(50,50,50,.12)');
+      pg.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=pg;
+      ctx.fillRect(gx-r2,gy-r2,r2*2,r2*2);
+    }
+    ctx.restore();
+
+    ctx.beginPath();
+    ctx.moveTo(...top); ctx.lineTo(...right);
+    ctx.lineTo(...bot); ctx.lineTo(...left);
+    ctx.closePath();
+    ctx.strokeStyle='rgba(60,60,60,.4)'; ctx.lineWidth=1; ctx.stroke();
+
+    // Left side
+    ctx.beginPath();
+    ctx.moveTo(...left); ctx.lineTo(...bot); ctx.lineTo(...botB); ctx.lineTo(...botL); ctx.closePath();
+    const lg2=ctx.createLinearGradient(0,th/2,cx,th+ts);
+    lg2.addColorStop(0,'#787878'); lg2.addColorStop(1,'#545454');
+    ctx.fillStyle=lg2; ctx.fill();
+    ctx.strokeStyle='rgba(30,30,30,.5)'; ctx.lineWidth=1; ctx.stroke();
+
+    // Right side
+    ctx.beginPath();
+    ctx.moveTo(...bot); ctx.lineTo(...right); ctx.lineTo(...botR); ctx.lineTo(...botB); ctx.closePath();
+    const rg2=ctx.createLinearGradient(cx,th,W,th/2+ts);
+    rg2.addColorStop(0,'#686868'); rg2.addColorStop(1,'#484848');
+    ctx.fillStyle=rg2; ctx.fill();
+    ctx.strokeStyle='rgba(30,30,30,.5)'; ctx.lineWidth=1; ctx.stroke();
+  }
+
+  return cv.toDataURL('image/png');
+}
+
+// Simple deterministic PRNG (mulberry32)
+function mulberry32(seed){
+  return function(){
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let z = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    z = z + Math.imul(z ^ z >>> 7, 61 | z) ^ z;
+    return ((z ^ z >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+// Pre-generate tile cache
+const TILE_CACHE = {};
+function getTile(type, variant) {
+  const key = type + variant;
+  if (!TILE_CACHE[key]) TILE_CACHE[key] = genTile(type, variant);
+  return TILE_CACHE[key];
+}
+
+// ── RENDER GROUND TILES ──
+function renderGround() {
+  // Remove old ground layer if any
+  document.querySelectorAll('.ground-tile').forEach(e => e.remove());
+
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const { x, y } = isoXY(c, r);
+      const img = document.createElement('img');
+      img.className = 'ground-tile tile';
+
+      // Determine tile type based on position (path in center band)
+      const isPath = (c >= 3 && c <= 12 && r >= 3 && r <= 12);
+      const type = isPath ? 'path' : 'grass';
+      const variant = (c * 3 + r * 7) % 4;
+
+      img.src = getTile(type, variant);
+      const z = (c + r) * 2;
+      img.style.cssText = `
+        left:${x - TW}px;
+        top:${y - TS}px;
+        width:${TW * 2}px;
+        height:${(TH + TS + 4) * 2}px;
+        z-index:${z};
+        position:absolute;
+        image-rendering:pixelated;
+        pointer-events:none;
+      `;
+      scene.appendChild(img);
+    }
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -634,11 +909,11 @@ const vp=document.getElementById('vp');
 const cellHi=document.getElementById('cell-hi');
 
 const spxW=(COLS+ROWS)*(TW/2)+300;
-const spxH=(COLS+ROWS)*(TH/2)+300;
+const spxH=(COLS+ROWS)*(TH/2)+300+TS*2;
 scene.style.width=spxW+'px';
 scene.style.height=spxH+'px';
 cellHi.style.width=TW+'px';
-cellHi.style.height=(TH+14)+'px';
+cellHi.style.height=(TH+TS+4)+'px';
 
 // ── BUILD GRID SVG ──
 function buildGrid(){
@@ -661,6 +936,8 @@ function buildGrid(){
   gridSvg.innerHTML=s;
 }
 buildGrid();
+// Render ground after grid
+renderGround();
 
 // ── ASSET PANEL ──
 function buildPanel(){
